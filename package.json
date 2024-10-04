@@ -19,7 +19,8 @@
     "format": "prettier --write --ignore-unknown **/*",
     "extension:dev": "vite build --config browser-extension/vite.config.js --watch",
     "extension:build": "vite build --config browser-extension/vite.config.js",
-    "test:program": "node --test --experimental-strip-types tests/program-config.test.ts tests/program.test.ts"
+    "test:program": "node --test --experimental-strip-types tests/program-config.test.ts tests/program.test.ts",
+    "test:serialize": "node --test --experimental-strip-types tests/serialize.test.ts"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.272",

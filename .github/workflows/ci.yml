@@ -24,5 +24,6 @@ jobs:
           npm ci
           npm run build --if-present
           npm run test:program
+          npm run test:serialize
         env:
           CI: true
