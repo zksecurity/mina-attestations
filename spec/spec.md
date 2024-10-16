@@ -5,42 +5,122 @@ It is intended as document for the accompanying codebase and implementators.
 It does not include security proofs or motivations for the design choices,
 see the RFC for such discussions.
 
-# Protocol: Presenting Credentials
+# Metadata
 
-The application logic only interacts with the `Credential` struct:
+Metadata SHOULD NOT be constrained during the creation of a credential.
+Metadata MUST NOT be used to determine the validity of a credential or its issuer.
+Metadata MUST only be used to present information about the credential in a human-readable way
+inside wallets and other applications for easy identification and selection.
+
+# Formats
+
+## Mina Credential
+
+A credential is a set of attributes and an owner:
 
 ```javascript
-Attributes {
-  owner: PublicKey,  // the owners public key
-  attrs: Attributes, // hidden attributes (e.g. age, name, SSN)
-}
-```
-
-```javascript
-Credential {
+type Credential = {
   owner: PublicKey,       // the owners public key
-  attributes: Attributes, // hidden attributes (e.g. age, name, SSN)
+  metaHash: Field,        // hash of arbitrary metadata
+  attributes: Attributes, // struct of hidden attributes (e.g. age, name, SSN)
 }
 ```
 
+Is is stored along with metadata and the version of the credential:
+
 ```javascript
-PublicInput {
+type Witness =
+  | { type: "simple",
+      issuer: PublicKey,
+      issuerSignature: Signature,
+    }
+  | { type: "recursive",
+      vk: VerificationKey,
+      credIdent: Field,
+      credProof: Proof,
+    }
+```
+
+```javascript
+type StoredCredential = {
+  version: "v0",
+  witness: Witness,
+  metadata: Metadata,
+  credential: Credential,
+}
+```
+
+Wallets MUST import/export credentials in this format, but MAY store them in any format internally.
+Wallets MUST validate the credential before importing it, we describe the validation procedure in this document.
+Note: validating a credential does not require access to the owner's private key.
+
+## Mina Credential Presentation
+
+The presentation proof is encoded as follows:
+
+```javascript
+type Presentation = {
+  version: "v0",
+  proof: Proof,
+  claims: Claims,
+}
+```
+
+## Mina Credential Metadata
+
+Metadata is a general key-value map. We standardize a few fields for interoperability across wallets:
+so that e.g. wallet can display an issuer name and icon for any compatible credential.
+Issuers may add their own fields as needed, such custom fields MUST NOT use the `mina` prefix.
+
+Standardized fields are:
+
+- `minaCredName`: The name of the credential: utf-8 encoded string.
+- `minaIssuerName`: The name of the issuer: utf-8 encoded string.
+- `minaDescription`: A human-readable description of the credential: utf-8 encoded string.
+- `minaIcon`: A byte array representing an icon for the credential.
+
+Any fields (inlcuding the standardized ones) MAY be omitted,
+wallets MUST handle the absence of any field gracefully, e.g. with a default icon.
+Wallets MUST NOT make trust decisions based on metadata, in particular,
+wallets MUST NOT verify the issuer based on the `minaIssuerName` field.
+Wallets MAY ignore ANY metadata field.
+
+```javascript
+type Metadata = {
+  minaCredName: String,
+  minaIssuerName: String,
+  minaDescription: String,
+  minaIcon: Uint8Array, // svg, jpg, png, webp, etc.
+  ...
+}
+```
+
+The `metaHash` field of the credential is the hash of the metadata.
+The `metaHash` fiueld MUST be computed using `Keccak256` over the metadata.
+
+```javascript
+metaHash = Keccak256.hash(metadata)
+```
+
+# Protocols
+
+## Presentations
+
+Presentation proofs MUST not be reused.
+Presentation proofs MUST be generated for each presentation.
+The presentation MUST NOT contain the "context" field, which MUST be recomputed by the verifier.
+The presentation MUST NOT include the `metadata` of the credential.
+
+### Public Inputs
+
+```javascript
+type PublicInput = {
   context: Field, // context : specified later
   claims: Claims  // application specific public inputs.
 }
 ```
 
-This means that the application logic does not need to know about the underlying cryptographic primitives
-and is pluggable between the simple and recursive credentials.
-The public input for both credential types is:
-
-The issuing authority is either:
-
-- A hash of a public key for simple credentials.
-- A hash of a sequence of public inputs and verification keys for recursive credentials:
-binding the credential to a specific verication logic (e.g. a circuit implementing RSA verification) and input (e.g. hash of Google's RSA public key).
-
-## Circuit: Present Simple Credential
+### Circuit: Present Simple Credential
 
 A standardized circuit for presenting simple credentials.
 
@@ -48,7 +128,7 @@ The circuit verifies two signatures: one from the issuer and one from the owner.
 
 ```javascript
 // the private inputs for the circuit
-PrivateInput {
+type PrivateInput = {
   credential: Credential,
   issuerPk: PublicKey,
   issuerSignature: Signature,
@@ -78,7 +158,7 @@ applicationConstraints(
 )
 ```
 
-## Circuit: Present Recursive Credential
+### Circuit: Present Recursive Credential
 
 A standardized circuit for presenting recursive credentials.
 
@@ -86,7 +166,7 @@ The circuit verifies a proof "from" the issuing authority and a signature from t
 
 ```javascript
 // the private inputs for the circuit
-PrivateInput {
+type PrivateInput = {
   vk: VerificationKey,
   credIdent: Field,
   credProof: Proof,
@@ -118,7 +198,7 @@ applicationConstraints(
 )
 ```
 
-# Context Identifiers
+# Context Binding
 
 The verifier computes the context (out-of-circuit) as:
 
@@ -126,48 +206,33 @@ The verifier computes the context (out-of-circuit) as:
 context = Poseidon.hashWithPrefix(
   "mina-cred:v0:context", // for versioning
   [
-    vk.hash,  // the verification key hash (of the presentation proof)
-    claims,   // the public input (the set of "claims" being presented)
-    nonce,    // a random nonce
-    verifier, // a URI for the verifiers identifier (see below)
-    action,   // the "action" being performed (e.g. login, transaction hash etc.)
+    // the verification key hash (of the presentation circuit)
+    presentationCircuitVK.hash,
+    claims,           // the public input (the set of "claims" being presented)
+    nonce,            // a random nonce
+    verifierIdentity, // a URI for the verifiers identifier (see below)
+    action,           // the "action" being performed (e.g. login, transaction hash etc.)
   ]
 )
 ```
 
 The nonce MUST be a uniformly random value generated by the prover.
 
-### Web Application
+## ZK App
+
+verifier = Mina address
+
+action = Method with arguments (note one of the args is the presentation proof).
+
+
+## Web Application
 
 [Uniform Resource Identifier](https://datatracker.ietf.org/doc/html/rfc3986)
 
 ```javascript
 let verifier = Keccak256.hash("https://example.com/verify");
+
+let action = Keccak256.hash(HTTP_REQUEST);
 ```
 
 The scheme MUST be `https`.
-
-# Discussion
-
-Discuss the following with Gregor:
-
-1. Should the `issuer` be a struct instead? (e.g. `Issuer { pk: PublicKey, signature: Signature }`)
-1. What is the standard way to provide domain-specific for signautures in the Mina ecosystem? should we do:
-```
-m = Poseidon.hashWithPrefix("mina-cred:v1:", [credHash, issuer, context]);
-
-signature.verifySignedHashV2(message, m);
-```
-1. Discuss [Nullifiers](https://github.com/o1-labs/o1js/issues/756) in the context of Mina Credentials.
-
-# Example: Merkle-Tree Credential
-
-# Example: RSA Credential
-
-# Example: PKI Credential
-
-# Bearer Credentials to Mina Credentials
-
-In some applications, e.g. zkPassport (ICAO), knowledge of the signed object constitutes the credential.
-To reduce the window of attack (e.g. avoid storing passport scans) and bring the credential into the Mina Credentials system,
-a public key must be bound to the knowledge of this signed object.

@@ -127,11 +127,12 @@ is outweighed by the following benefits:
 - Allow use of existing infrastructure for key management.
   Including hardware enclaves and the ability to authortize presentations efficiently using MPC:
   authortization requires the parties to threshold sign using Schnorr.
-  An untrusted party can be asked to compute the actual proof at the cost of privacy.
 
-- Out-sourcing the computation of the presentation proof is possible at the cost of privacy:
+- Outsourcing the computation of the proofs is possible at the cost of privacy:
   the user must reveal the credential and the context to the prover, but the prover cannot impersonate the user or change the intented action.
-  This is useful in scenarios where the prover is a resource-constrained device.
+  This is useful in scenarios where the prover is a resource-constrained device,
+  this is useful in applications such as zkLogin, where for practicality reasons, the proving is outsourced to a third party in practice.
+  We want to allow the Mina ecosystem this option should it be relevant to particular applications.
 
 - A compromise of the credential object itself does not allow impersonation.
 
@@ -142,7 +143,3 @@ is outweighed by the following benefits:
   the first scheme requires [(weak) simulation extractability](https://eprint.iacr.org/2020/1306.pdf) since the "context".
 
 We obtain a design in which the SNARK serves only to hide the
-
-We show that if even if the SNARK prover is malicious, the credential remains unforgeable:
-this is useful in applications such as zkLogin, where for practicality reasons, the proving is outsourced to a third party in practice.
-We want to allow the Mina ecosystem this option should it be relevant to particular applications.
