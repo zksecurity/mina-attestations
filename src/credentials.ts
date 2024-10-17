@@ -35,6 +35,7 @@ export {
   type CredentialType,
   type CredentialId,
   type CredentialInputs,
+  type CredentialOutputs,
   verifyCredentials,
   signCredential,
 };

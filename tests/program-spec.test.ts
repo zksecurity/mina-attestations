@@ -12,7 +12,7 @@ import {
   type DataInputs,
 } from '../src/program-spec.ts';
 import { createSignatureCredential, owner } from './test-utils.ts';
-import { Credential } from '../src/credentials.ts';
+import { Credential, type CredentialOutputs } from '../src/credentials.ts';
 
 function cred<D>(data: D): Credential<D> {
   return { owner, data };
@@ -664,12 +664,28 @@ test(' Spec and Node operations', async (t) => {
     };
 
     let { privateInput, publicInput } = splitUserInputs(userInputs);
-    let root = recombineDataInputs(spec, publicInput, privateInput);
+
+    const mockCredentialOutputs: CredentialOutputs = {
+      owner: owner,
+      credentials: [
+        {
+          credential: { owner, data },
+          issuer: Field(1234),
+        },
+      ],
+    };
+    let root = recombineDataInputs(
+      spec,
+      publicInput,
+      privateInput,
+      mockCredentialOutputs
+    );
 
     assert.deepStrictEqual(root, {
-      signedData: cred(data),
+      signedData: { credential: cred(data), issuer: Field(1234) },
       targetAge: Field(30),
       targetName: Bytes32.fromString('David'),
+      owner: owner,
     });
 
     const assertResult = Node.eval(root, spec.logic.assert);

@@ -60,9 +60,14 @@ function createProgram<S extends Spec>(
             privateInput
           );
           // TODO return issuers from this function and pass it to app logic
-          verifyCredentials(credentials);
+          let credentialOutputs = verifyCredentials(credentials);
 
-          let root = recombineDataInputs(spec, publicInput, privateInput);
+          let root = recombineDataInputs(
+            spec,
+            publicInput,
+            privateInput,
+            credentialOutputs
+          );
           let assertion = Node.eval(root, spec.logic.assert);
           let output = Node.eval(root, spec.logic.data);
           assertion.assertTrue('Program assertion failed!');

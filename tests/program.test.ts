@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { Field, Bytes } from 'o1js';
+import { Field, Bytes, PrivateKey } from 'o1js';
 import { createProgram } from '../src/program.ts';
 import { Input, Operation, Spec } from '../src/program-spec.ts';
 import {
   createOwnerSignature,
   createSignatureCredential,
+  owner,
 } from './test-utils.ts';
 import { Credential } from '../src/credentials.ts';
 
@@ -130,5 +131,60 @@ test('program with simple spec and signature credential', async (t) => {
       },
       'Program should fail with invalid input'
     );
+  });
+});
+
+test('program with owner and issuer operations', async (t) => {
+  const InputData = { dummy: Field };
+  const SignedData = Credential.signatureNative(InputData);
+
+  const spec = Spec(
+    {
+      signedData: SignedData,
+      expectedDummy: Input.constant(Field, Field(123)),
+    },
+    ({ signedData, expectedDummy }) => ({
+      assert: Operation.equals(
+        Operation.property(signedData, 'dummy'),
+        expectedDummy
+      ),
+      data: Operation.record({
+        owner: Operation.owner(),
+        issuer: Operation.issuer('signedData'),
+        dummy: Operation.property(signedData, 'dummy'),
+      }),
+    })
+  );
+
+  const program = createProgram(spec);
+
+  await t.test('compile program', async () => {
+    const vk = await program.compile();
+    assert(vk, 'Verification key should be generated for zk program');
+  });
+
+  await t.test('run program with valid input', async () => {
+    const dummyData = { dummy: Field(123) };
+    const signedData = createSignatureCredential(InputData, dummyData);
+    let ownerSignature = createOwnerSignature(context, [
+      SignedData,
+      signedData,
+    ]);
+
+    const proof = await program.run({
+      context,
+      ownerSignature,
+      credentials: { signedData },
+      claims: {},
+    });
+
+    assert(proof, 'Proof should be generated');
+
+    assert.deepStrictEqual(proof.publicOutput.owner, owner);
+
+    const expectedIssuerField = SignedData.issuer(signedData.private);
+    assert.deepStrictEqual(proof.publicOutput.issuer, expectedIssuerField);
+
+    assert.deepStrictEqual(proof.publicOutput.dummy, Field(123));
   });
 });
