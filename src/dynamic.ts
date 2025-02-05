@@ -9,6 +9,13 @@ export {
   Sha2Iteration,
   Sha2FinalIteration,
 } from './credentials/dynamic-sha2.ts';
+export { DynamicSHA3 } from './credentials/dynamic-sha3.ts';
+export {
+  toDecimalString,
+  toBaseBE,
+  fromBaseBE,
+} from './credentials/gadgets-digits.ts';
+
 export {
   hashDynamic,
   hashDynamicWithPrefix,

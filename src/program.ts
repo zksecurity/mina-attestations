@@ -33,22 +33,19 @@ type Program<Output, Inputs extends Record<string, Input>> = {
 
   run(input: UserInputs<Inputs>): Promise<Proof<PublicInputs<Inputs>, Output>>;
 
-  program: ZkProgram<
-    {
-      publicInput: ProvableType<PublicInputs<Inputs>>;
-      publicOutput: ProvableType<Output>;
-      methods: {
-        run: {
-          privateInputs: [ProvableType<PrivateInputs<Inputs>>];
-          method(
-            publicInput: PublicInputs<Inputs>,
-            privateInput: PrivateInputs<Inputs>
-          ): Promise<{ publicOutput: Output }>;
-        };
+  program: ZkProgram<{
+    publicInput: ProvableType<PublicInputs<Inputs>>;
+    publicOutput: ProvableType<Output>;
+    methods: {
+      run: {
+        privateInputs: [ProvableType<PrivateInputs<Inputs>>];
+        method(
+          publicInput: PublicInputs<Inputs>,
+          privateInput: PrivateInputs<Inputs>
+        ): Promise<{ publicOutput: Output }>;
       };
-    },
-    any
-  >;
+    };
+  }>;
 };
 
 function createProgram<S extends Spec>(

@@ -13,7 +13,7 @@ import {
   provableDynamicArray,
 } from './dynamic-array.ts';
 import { ProvableFactory } from '../provable-factory.ts';
-import { assert, pad, stringLength } from '../util.ts';
+import { assert, stringLength } from '../util.ts';
 import { BaseType } from './dynamic-base-types.ts';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
 import { packBytes } from './gadgets.ts';
@@ -79,8 +79,20 @@ function DynamicString({ maxLength }: { maxLength: number }) {
   return DynamicString;
 }
 
-DynamicString.from = function (s: string | DynamicStringBase) {
-  if (typeof s !== 'string') return s;
+DynamicString.from = function (
+  s: string | DynamicStringBase | DynamicArray<UInt8>
+) {
+  if (s instanceof DynamicArrayBase) {
+    if (s instanceof DynamicStringBase) return s;
+    // if this is not a DynamicString, we construct an equivalent one
+    let String = DynamicString({ maxLength: s.maxLength });
+    let string = new String(s.array, s.length);
+    string._indexMasks = s._indexMasks;
+    string.__dummyMask = s.__dummyMask;
+    string._indicesInRange = s._indicesInRange;
+    return string;
+  }
+  assert(typeof s === 'string', 'expected string');
   return DynamicString({ maxLength: stringLength(s) }).from(s);
 };
 
@@ -95,9 +107,9 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
   }
 
   /**
-   * Hash the string using variants of SHA2.
+   * Hash the string using variants of SHA2 and SHA3.
    */
-  hashToBytes(algorithm: 'sha2-256' | 'sha2-384' | 'sha2-512') {
+  hashToBytes(algorithm: 'sha2-256' | 'sha2-384' | 'sha2-512' | 'keccak256') {
     switch (algorithm) {
       case 'sha2-256':
         return DynamicSHA2.hash(256, this);
@@ -105,13 +117,15 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
         return DynamicSHA2.hash(384, this);
       case 'sha2-512':
         return DynamicSHA2.hash(512, this);
+      // case 'keccak256':
+      //   return DynamicSHA3.keccak256(this);
       default:
         assert(false, 'unsupported hash kind');
     }
   }
 
   /**
-   * Convert DynamicBytes to a string.
+   * Convert DynamicString to a string.
    */
   toString() {
     return this.toValue() as any as string;
@@ -125,7 +139,9 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
    * Note: This overrides the naive `concat()` implementation in `DynamicArray`.
    * It's much more efficient than the base method and than both `concatTransposed()` and `concatByHashing()`.
    */
-  concat(other: DynamicString): DynamicString {
+  concat(other: DynamicArray<UInt8> | string): DynamicString {
+    if (typeof other === 'string') other = DynamicString.from(other);
+
     const CHARS_PER_BLOCK = 8; // hand-fitted to optimize constraints for (100, 100) and (100, 20) concat
 
     // divide both strings into smaller blocks of chars
@@ -158,6 +174,7 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
 
     // the trailing block of the second string is combined with the final trailing block
     let combined = trailing.concatTransposed(bTrailingBlock);
+    combined.normalize(); // needed to not hash non-zero padding bytes
     let firstHalf = combined.array.slice(0, CHARS_PER_BLOCK);
     let secondHalf = combined.array.slice(CHARS_PER_BLOCK);
 
@@ -220,17 +237,21 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
       | (UInt8 | UInt8V)[]
       | string
   ) {
-    if (typeof other === 'string') {
-      other = DynamicString({ maxLength: stringLength(other) }).from(other);
-    }
+    if (typeof other === 'string') other = DynamicString.from(other);
     super.assertEquals(other);
   }
 
   splitAt(index: number): [DynamicString, DynamicString] {
     let [a, b] = super.splitAt(index);
-    let StringA = DynamicString({ maxLength: a.maxLength });
-    let StringB = DynamicString({ maxLength: b.maxLength });
-    return [new StringA(a.array, a.length), new StringB(b.array, b.length)];
+    return [DynamicString.from(a), DynamicString.from(b)];
+  }
+
+  slice(start: number | UInt32): DynamicString {
+    return DynamicString.from(super.slice(start));
+  }
+
+  reverse(): DynamicString {
+    return DynamicString.from(super.reverse());
   }
 
   assertContains(
@@ -246,13 +267,8 @@ class DynamicStringBase extends DynamicArrayBase<UInt8, { value: bigint }> {
     return super.assertContains(substring, message);
   }
 
-  growMaxLengthTo(maxLength: number): DynamicStringBase {
-    assert(
-      maxLength >= this.maxLength,
-      'new maxLength must be greater or equal'
-    );
-    let array = pad(this.array, maxLength, UInt8.from(0));
-    return new (DynamicString({ maxLength }))(array, this.length);
+  growMaxLengthTo(maxLength: number): DynamicString {
+    return DynamicString.from(super.growMaxLengthTo(maxLength));
   }
 }
 

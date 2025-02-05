@@ -22,5 +22,6 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "allowSyntheticDefaultImports": true
+    // "erasableSyntaxOnly": true, // TODO add when 5.8 out of beta
   }
 }

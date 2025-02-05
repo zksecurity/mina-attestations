@@ -282,6 +282,21 @@ class DynamicArrayBase<T = any, V = any> {
   }
 
   /**
+   * Iterate over all elements of the array, in reverse order.
+   *
+   * The callback will be passed an element and a boolean `isDummy` indicating whether the value is part of the actual array.
+   *
+   * Note: the indices are also passed in reverse order, i.e. we always have `t = this.array[i]`.
+   */
+  forEachReverse(f: (t: T, isDummy: Bool, i: number) => void) {
+    zip(this.array, this._dummyMask())
+      .toReversed()
+      .forEach(([t, isDummy], i) => {
+        f(t, isDummy, this.maxLength - 1 - i);
+      });
+  }
+
+  /**
    * Reduce the array to a single value.
    *
    * The callback will be passed the current state, an element, and a boolean `isDummy` indicating whether the value is part of the actual array.
@@ -300,7 +315,7 @@ class DynamicArrayBase<T = any, V = any> {
   }
 
   /**
-   * Split the array at index i, i.e. returns `[splice(0, i), splice(i)]`.
+   * Split the array at index i, i.e. returns `[slice(0, i), slice(i)]`.
    *
    * If i is 0, the first array will be empty.
    * If i it >= the length, the second array will be empty.
@@ -323,6 +338,39 @@ class DynamicArrayBase<T = any, V = any> {
     let length2 = Provable.if(ltLength, this.length.sub(Field(i)), Field(0));
 
     return [new Array1(array1, length1), new Array2(array2, length2)];
+  }
+
+  /**
+   * Equivalent to `Array.slice(start)`. Supports variable start index.
+   */
+  slice(start: number | UInt32): DynamicArray<T, V> {
+    if (typeof start === 'number') return this.splitAt(start)[1];
+
+    let Array = DynamicArray(this.innerType, { maxLength: this.maxLength });
+    let length = this.length.sub(start.value).seal();
+    Gadgets.rangeCheck16(length);
+    // note: these values are constrained if the index is in the new range
+    // i < length - start => start + i < length
+    let array = this.array.map((_, i) =>
+      this.getOrUnconstrained(start.value.add(i))
+    );
+    return new Array(array, length);
+  }
+
+  /**
+   * Returns a new array with the elements reversed.
+   */
+  reverse(): DynamicArray<T, V> {
+    let Array = DynamicArray(this.innerType, { maxLength: this.maxLength });
+    // first, reverse the full array
+    let array = this.array.toReversed();
+
+    // `array` is not yet what we need, since it has all the padding at the beginning
+    // so, slice off the padding
+    let maxLength = Field(this.maxLength);
+    return new Array(array, maxLength).slice(
+      UInt32.Unsafe.fromField(maxLength.sub(this.length).seal())
+    );
   }
 
   /**
@@ -394,6 +442,9 @@ class DynamicArrayBase<T = any, V = any> {
     return state[0];
   }
 
+  /**
+   * Convert the array to a MerkleList.
+   */
   merkelize(listHash?: (hash: Field, t: T) => Field): MerkleList<T> {
     let type = this.innerType;
     listHash ??= (h, t) => Poseidon.hash([h, packToField(t, type)]);
@@ -629,7 +680,7 @@ class DynamicArrayBase<T = any, V = any> {
    *
    * **Note**: this doesn't cost constraints, but currently doesn't preserve any cached constraints.
    */
-  growMaxLengthTo(maxLength: number): DynamicArray<T> {
+  growMaxLengthTo(maxLength: number): DynamicArray<T, V> {
     assert(
       maxLength >= this.maxLength,
       'new maxLength must be greater or equal'
@@ -648,8 +699,32 @@ class DynamicArrayBase<T = any, V = any> {
    *
    * **Note**: this doesn't cost constraints, but currently doesn't preserve any cached constraints.
    */
-  growMaxLengthBy(maxLength: number): DynamicArray<T> {
+  growMaxLengthBy(maxLength: number): DynamicArray<T, V> {
     return this.growMaxLengthTo(this.maxLength + maxLength);
+  }
+
+  /**
+   * Mutate this array such that all elements beyond the actual length are set to an empty value.
+   */
+  normalize() {
+    let NULL = ProvableType.synthesize(this.innerType);
+    this.forEach((t, isPadding, i) => {
+      this.array[i] = Provable.if(isPadding, this.innerType, NULL, t);
+    });
+  }
+
+  /**
+   * Assert that the array is normalized, i.e. all padding elements are empty.
+   *
+   * Note: For completeness, it is probably better to use `normalize()` which uses the same amount
+   * of constraints and comes with the same guarantee.
+   */
+  assertNormalized() {
+    let NULL = ProvableType.synthesize(this.innerType);
+    this.forEach((t, isPadding) => {
+      // TODO this needs a message argument!
+      Provable.assertEqualIf(isPadding, this.innerType, t, NULL);
+    });
   }
 
   // cached variables to not duplicate constraints if we do something like array.get(i), array.set(i, ..) on the same index

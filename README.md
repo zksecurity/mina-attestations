@@ -88,11 +88,13 @@ Under the sub-import `mina-attestations/dynamic`, we export an entire library of
 Features:
 
 - `DynamicSHA2` for hashing dynamic-length inputs with SHA2-256, -224, -384 or -512
-- `DynamicString` and `DynamicBytes` for representing strings and bytes
+- `DynamicSHA3` for hashing dynamic-length inputs with Keccak256
+- `DynamicString` and `DynamicBytes` for representing strings and bytes, with many useful methods for manipulating strings in a circuit
 - `DynamicArray`, a generalization of the above types to an arbitrary element type
-- `StaticArray`, which provides an API consistent with `DynamicArray` but for _fixed-length_ arrays (which aren't well-supported in o1js either)
+- `StaticArray`, which provides an API consistent with `DynamicArray` but for fixed-length arrays
 - `DynamicRecord`, a wrapper for objects that you don't necessarily know the exact layout of, but can be hashed and accessed properties of inside a circuit
 - `hashDynamic()`, for Poseidon-hashing pretty much any input (including plain strings, records, o1js types etc) in a way which is compatible to in-circuit hashing of padded data types like `DynamicRecord` and `DynamicArray`
+- `toDecimalString()`, a gadget to compute the variable-length decimal string from a `Field`
 
 The sub-library is intended to help with importing **real-world credentials** into the Mina ecosystem: For example, to "import" your passport, you have to verify the passport authority's signature on your passport data. The signature relies one of several hashing and signature schemes such as ECDSA, RSA and SHA2-256, SHA2-384, SHA2-512. Also, the signature will be over a dynamic-length string.
 

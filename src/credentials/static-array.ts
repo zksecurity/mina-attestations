@@ -25,9 +25,7 @@ type StaticArrayClass<A, T, V> = typeof StaticArrayBase<T, V> & {
   provable: ProvableHashableWide<StaticArrayBase<T, V>, V[], (T | From<A>)[]>;
 
   /**
-   * Create a new DynamicArray from an array of values.
-   *
-   * Note: Both the actual length and the values beyond the original ones will be constant.
+   * Create a new StaticArray from an array of values.
    */
   from(v: (T | From<A>)[] | StaticArrayBase<T, V>): StaticArrayBase<T, V>;
 };

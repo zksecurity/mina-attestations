@@ -10,6 +10,7 @@ export {
   notImplemented,
   zip,
   chunk,
+  chunkString,
   pad,
   fill,
   arrayEqual,
@@ -21,6 +22,7 @@ export {
   isSubclass,
   stringLength,
   mod,
+  Bytes,
 };
 
 function assert(
@@ -122,6 +124,10 @@ function chunk<T>(array: T[], size: number): T[][] {
   );
 }
 
+function chunkString(str: string, size: number): string[] {
+  return chunk([...str], size).map((chunk) => chunk.join(''));
+}
+
 function pad<T>(array: T[], size: number, value: T | (() => T)): T[] {
   assert(
     array.length <= size,
@@ -213,7 +219,8 @@ function isSubclass<B extends Constructor<any>>(
   return constructor.prototype instanceof base;
 }
 
-let enc = new TextEncoder();
+const enc = new TextEncoder();
+const dec = new TextDecoder();
 
 function stringLength(str: string): number {
   return enc.encode(str).length;
@@ -224,3 +231,53 @@ function mod(x: bigint, p: bigint): bigint {
   let z = x % p;
   return z < 0 ? z + p : z;
 }
+
+const Bytes = {
+  fromString(str: string) {
+    return enc.encode(str);
+  },
+  toString(bytes: Uint8Array) {
+    return dec.decode(bytes);
+  },
+
+  fromHex(hex: string) {
+    if (hex.startsWith('0x')) hex = hex.slice(2);
+    let bytes = chunkString(hex, 2).map((byte) => parseInt(byte, 16));
+    return new Uint8Array(bytes);
+  },
+  toHex(bytes: Uint8Array) {
+    return bytes.reduce(
+      (hex, byte) => hex + byte.toString(16).padStart(2, '0'),
+      ''
+    );
+  },
+
+  padStart(bytes: Uint8Array, size: number, value: number): Uint8Array {
+    assert(bytes.length <= size, 'Bytes.padStart(): bytes larger than size');
+    if (bytes.length === size) return bytes;
+    let a = new Uint8Array(size);
+    a.fill(value, 0, size - bytes.length);
+    a.set(bytes, size - bytes.length);
+    return a;
+  },
+
+  padEnd(bytes: Uint8Array, size: number, value: number): Uint8Array {
+    assert(bytes.length <= size, 'Bytes.padEnd(): bytes larger than size');
+    if (bytes.length === size) return bytes;
+    let a = new Uint8Array(size);
+    a.set(bytes);
+    a.fill(value, bytes.length);
+    return a;
+  },
+
+  concat(...arrays: Uint8Array[]): Uint8Array {
+    let size = arrays.reduce((s, a) => s + a.length, 0);
+    let a = new Uint8Array(size);
+    let offset = 0;
+    arrays.forEach((b) => {
+      a.set(b, offset);
+      offset += b.length;
+    });
+    return a;
+  },
+};

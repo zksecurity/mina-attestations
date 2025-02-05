@@ -1,7 +1,7 @@
 import { Bytes, Provable, UInt32, UInt64 } from 'o1js';
 import { deepStrictEqual } from 'node:assert';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
-import { zip } from '../util.ts';
+import { stringLength, zip } from '../util.ts';
 import { DynamicBytes } from './dynamic-bytes.ts';
 import test from 'node:test';
 import { SHA2 } from './sha2.ts';
@@ -191,7 +191,4 @@ They are built using the Merkle–Damgård construction, from a one-way compress
 built using the Davies–Meyer structure from a specialized block cipher.
 
 SHA-2 includes significant changes from its predecessor, SHA-1.`;
-}
-function stringLength(s: string) {
-  return new TextEncoder().encode(s).length;
 }

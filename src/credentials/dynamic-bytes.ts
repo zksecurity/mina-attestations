@@ -79,6 +79,10 @@ function DynamicBytes({ maxLength }: { maxLength: number }) {
   return DynamicBytes;
 }
 
+DynamicBytes.fromBytes = function (bytes: Uint8Array) {
+  return DynamicBytes({ maxLength: bytes.length }).fromBytes(bytes);
+};
+
 class DynamicBytesBase extends DynamicArrayBase<UInt8, { value: bigint }> {
   get innerType() {
     return UInt8 as any as ProvableHashable<UInt8, { value: bigint }>;
