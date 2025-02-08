@@ -1,4 +1,4 @@
-import { Bytes, Field, UInt64 } from 'o1js';
+import { Bytes, Field, Int64, UInt64 } from 'o1js';
 import {
   Spec,
   Operation,
@@ -38,7 +38,7 @@ const schema = Schema({
   /**
    * Date of birth of the owner.
    */
-  birthDate: Schema.Number,
+  birthDate: Int64,
 
   /**
    * Owner ID (16 bytes).
@@ -57,7 +57,7 @@ const schema = Schema({
 let data = schema.from({
   nationality: 'United States of America',
   name: 'John Doe',
-  birthDate: Date.UTC(1990, 1, 1),
+  birthDate: Int64.from(Date.UTC(1940, 1, 1)),
   id: Bytes16.random(),
   expiresAt: Date.UTC(2028, 7, 1),
 });

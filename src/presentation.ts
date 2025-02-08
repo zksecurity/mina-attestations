@@ -10,7 +10,12 @@ import {
   VerificationKey,
   verify,
 } from 'o1js';
-import { Spec, type Input, type Claims } from './program-spec.ts';
+import {
+  Spec,
+  type Input,
+  type Claims,
+  isCredentialSpec,
+} from './program-spec.ts';
 import { createProgram, type Program } from './program.ts';
 import {
   credentialMatchesSpec,
@@ -353,8 +358,8 @@ async function preparePresentation<R extends PresentationRequest>({
   // });
 
   // prepare fields to sign
-  let credHashes = credentialsAndSpecs.map(
-    ({ credential }) => hashCredential(credential).hash
+  let credHashes = credentialsAndSpecs.map(({ credential }) =>
+    hashCredential(credential)
   );
   let issuers = credentialsAndSpecs.map(({ spec, witness }) =>
     spec.issuer(witness)
@@ -503,9 +508,8 @@ function pickCredentials(
   credentialsAndSpecs: (StoredCredential & { spec: CredentialSpec })[];
 } {
   let credentialsNeeded = Object.entries(spec.inputs).filter(
-    (c): c is [string, CredentialSpec] => c[1].type === 'credential'
+    (c): c is [string, CredentialSpec] => isCredentialSpec(c[1])
   );
-  let credentialKeys = credentialsNeeded.map(([key]) => key);
   let credentialsUsed: Record<string, StoredCredential> = {};
   let credentialsStillNeeded: [string, CredentialSpec][] = [];
 

@@ -1,4 +1,4 @@
-import { Bytes } from 'o1js';
+import { Bytes, Int64 } from 'o1js';
 import { Schema } from '../../../src/index.ts';
 import { z } from 'zod';
 
@@ -22,7 +22,7 @@ const schema = Schema({
   /**
    * Date of birth of the owner.
    */
-  birthDate: Schema.Number,
+  birthDate: Int64,
 
   /**
    * Owner ID (16 bytes).

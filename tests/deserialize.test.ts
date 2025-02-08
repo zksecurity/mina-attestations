@@ -15,7 +15,12 @@ import {
   FeatureFlags,
   Bytes,
 } from 'o1js';
-import { Spec, Constant, Claim } from '../src/program-spec.ts';
+import {
+  Spec,
+  Constant,
+  Claim,
+  isCredentialSpec,
+} from '../src/program-spec.ts';
 import { Node, Operation } from '../src/operation.ts';
 import {
   serializeNode,
@@ -646,10 +651,7 @@ test('deserializeSpec', async (t) => {
         originalSpec.inputs.zeroField
       );
 
-      assert.deepStrictEqual(
-        deserialized.inputs.signedData?.type,
-        originalSpec.inputs.signedData.type
-      );
+      assert(isCredentialSpec(deserialized.inputs.signedData));
 
       assert.deepStrictEqual(
         deserialized.inputs.signedData.witness,
@@ -757,10 +759,8 @@ test('deserializeSpec', async (t) => {
         originalSpec.inputs.zeroField
       );
 
-      assert.deepStrictEqual(
-        deserialized.inputs.provedData?.type,
-        originalSpec.inputs.provedData.type
-      );
+      assert(isCredentialSpec(deserialized.inputs.provedData));
+
       assert.deepStrictEqual(
         deserialized.inputs.provedData.data,
         originalSpec.inputs.provedData.data

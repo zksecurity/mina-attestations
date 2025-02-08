@@ -17,6 +17,7 @@ import {
   VerificationKey,
   Struct,
   type JsonProof,
+  Int64,
 } from 'o1js';
 import { assert, assertHasMethod, defined } from './util.ts';
 import { ProvableFactory, type SerializedFactory } from './provable-factory.ts';
@@ -46,6 +47,7 @@ const supportedTypes = {
   UInt8,
   UInt32,
   UInt64,
+  Int64,
   PublicKey,
   Signature,
   Undefined,
@@ -283,6 +285,8 @@ function deserializeProvable(json: SerializedValue): any {
       return UInt32.fromJSON(value);
     case 'UInt64':
       return UInt64.fromJSON(value);
+    case 'Int64':
+      return Int64.fromJSON(value);
     case 'PublicKey':
       return PublicKey.fromJSON(value);
     case 'Signature':

@@ -48,14 +48,6 @@ function serializeInputs(inputs: Record<string, Input>): Record<string, any> {
 function serializeInput(input: Input): any {
   if ('type' in input) {
     switch (input.type) {
-      case 'credential': {
-        return {
-          type: 'credential',
-          credentialType: input.credentialType,
-          witness: serializeNestedProvable(input.witness),
-          data: serializeNestedProvable(input.data),
-        };
-      }
       case 'constant': {
         return {
           type: 'constant',
@@ -66,6 +58,14 @@ function serializeInput(input: Input): any {
       case 'claim': {
         return {
           type: 'claim',
+          data: serializeNestedProvable(input.data),
+        };
+      }
+      default: {
+        return {
+          type: 'credential',
+          credentialType: input.credentialType,
+          witness: serializeNestedProvable(input.witness),
           data: serializeNestedProvable(input.data),
         };
       }

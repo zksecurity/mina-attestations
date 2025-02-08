@@ -50,6 +50,7 @@ export {
   splitUserInputs,
   extractCredentialInputs,
   recombineDataInputs,
+  isCredentialSpec,
 };
 
 type Spec<
@@ -103,7 +104,7 @@ function Spec<Output, Inputs extends Record<string, Input>>(
   );
 
   for (let key in inputs) {
-    if (inputs[key]?.type === 'credential') {
+    if (isCredentialSpec(inputs[key])) {
       let credentialType = inputs[key].credentialType;
       let node: CredentialNode = {
         type: 'credential',
@@ -133,9 +134,15 @@ type Constant<Data> = {
 type Claim<Data> = { type: 'claim'; data: NestedProvableFor<Data> };
 
 type Input<Data = any> =
-  | CredentialSpec<CredentialType, any, Data>
+  | (CredentialSpec<CredentialType, any, Data> & { type?: undefined })
   | Constant<Data>
   | Claim<Data>;
+
+function isCredentialSpec(input: Input | undefined) {
+  return (
+    input !== undefined && input.type !== 'claim' && input.type !== 'constant'
+  );
+}
 
 type OutputNode<Data> = {
   assert: Node<Bool>;
@@ -183,7 +190,7 @@ function privateInputTypes({ inputs }: Spec): NestedProvableFor<{
   let credentials: Record<string, NestedProvableFor<CredentialInputType>> = {};
 
   Object.entries(inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       credentials[key] = {
         credential: withOwner(input.data),
         witness: input.witness,
@@ -204,7 +211,7 @@ type RootType = Record<string, NestedProvable | CredentialSpec>;
 function rootType({ inputs }: Spec): RootType {
   let result: Record<string, NestedProvable | CredentialSpec> = {};
   Object.entries(inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       result[key] = input;
     } else {
       result[key] = input.data;
@@ -239,7 +246,7 @@ function extractCredentialInputs(
   let credentialInputs: CredentialInputs['credentials'] = [];
 
   Object.entries(spec.inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       let value: any = credentials[key];
       credentialInputs.push({
         spec: input,
@@ -269,7 +276,7 @@ function recombineDataInputs<S extends Spec>(
   let i = 0;
 
   Object.entries(spec.inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       result[key] = credentialOutputs.credentials[i];
       i++;
     }

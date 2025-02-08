@@ -37,11 +37,11 @@ const Native = Object.assign(
 
     // verify the signature
     verify({ issuer, issuerSignature }, credHash) {
-      let ok = issuerSignature.verify(issuer, [credHash.hash]);
+      let ok = issuerSignature.verify(issuer, [credHash]);
       ok.assertTrue('Invalid signature');
     },
     async verifyOutsideCircuit({ issuer, issuerSignature }, credHash) {
-      let ok = issuerSignature.verify(issuer, [credHash.hash]);
+      let ok = issuerSignature.verify(issuer, [credHash]);
       ok.assertTrue('Invalid signature');
     },
 
@@ -71,7 +71,7 @@ function createNative<Data>(
       ? deserializeNestedProvableValue(JSON.parse(credentialInput))
       : credentialInput;
   let credHash = hashCredential(credential);
-  let issuerSignature = Signature.create(issuerPrivateKey, [credHash.hash]);
+  let issuerSignature = Signature.create(issuerPrivateKey, [credHash]);
 
   return {
     version: 'v0',
