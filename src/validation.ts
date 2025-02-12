@@ -17,6 +17,8 @@ export type {
   CredentialSpecJSON,
   NodeJSON,
   SpecJSON,
+  PresentationRequestJSON,
+  StoredCredentialJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -52,6 +54,7 @@ const SerializedTypeSchema: z.ZodType<SerializedType> = z.lazy(() =>
         z.literal('UInt8'),
         z.literal('UInt32'),
         z.literal('UInt64'),
+        z.literal('Int64'),
         z.literal('PublicKey'),
         z.literal('Signature'),
         z.literal('Undefined'),
@@ -420,6 +423,8 @@ const PresentationRequestSchema = z
   })
   .strict();
 
+type PresentationRequestJSON = z.infer<typeof PresentationRequestSchema>;
+
 // Witness Schemas
 
 const NativeWitnessSchema = z
@@ -504,3 +509,5 @@ const StoredCredentialSchema = z
     credential: z.union([NativeCredentialSchema, StructCredentialSchema]),
   })
   .strict();
+
+type StoredCredentialJSON = z.infer<typeof StoredCredentialSchema>;

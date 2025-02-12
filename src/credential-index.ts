@@ -25,7 +25,10 @@ import {
   serializeNestedProvableValue,
 } from './serialize-provable.ts';
 import { Schema } from './dynamic/schema.ts';
-import type { CredentialSpecJSON } from './validation.ts';
+import {
+  StoredCredentialSchema,
+  type CredentialSpecJSON,
+} from './validation.ts';
 
 export { Credential, validateCredential };
 
@@ -70,12 +73,13 @@ const Credential = {
    */
   async fromJSON(json: string): Promise<StoredCredential> {
     await initializeBindings();
-    let obj = JSON.parse(json);
+    let obj: unknown = JSON.parse(json);
+    let parsed = StoredCredentialSchema.parse(obj);
     return {
-      version: obj.version,
-      witness: deserializeNestedProvableValue(obj.witness),
-      metadata: obj.metadata,
-      credential: deserializeNestedProvableValue(obj.credential),
+      version: parsed.version,
+      witness: deserializeNestedProvableValue(parsed.witness),
+      metadata: parsed.metadata,
+      credential: deserializeNestedProvableValue(parsed.credential),
     };
   },
 

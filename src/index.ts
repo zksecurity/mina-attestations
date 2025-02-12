@@ -24,3 +24,12 @@ export {
   toValue,
 } from './dynamic/dynamic-hash.ts';
 export { Schema } from './dynamic/schema.ts';
+export { PrettyPrinter } from './pretty-printer.ts';
+
+export type {
+  StoredCredentialJSON,
+  CredentialSpecJSON,
+  PresentationRequestJSON,
+  SpecJSON,
+  NodeJSON,
+} from './validation.ts';

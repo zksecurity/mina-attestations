@@ -34,11 +34,7 @@ The attestation flow involves three parties: _issuer_, _user_ and _verifier_. Th
 
 To summarize, roughly, in cryptographic terms: credentials are signed data, and presentations are zero-knowledge proofs about credentials.
 
-<!-- TODO: is this good enough as a definition of private attestations? -->
-
 _Private attestations_ refers to the entire protocol sketched above. A synonymous term from the academic literature is [anonymous credentials](https://www.sciencedirect.com/topics/computer-science/anonymous-credential).
-
-<!-- TODO see [below](LINK) ? -->
 
 ## Features 💫
 
@@ -174,12 +170,11 @@ The request also has to contain the input claims (here: `createdAt`), as there i
 Another point is that the user, when approving the request, should be able to understand what data they share. To make this possible, we implemented a pretty-printer that converts presentation specs into human-readable pseudo-code:
 
 <!-- TODO would be nice to show a screenshot of the Pallad prompt here -->
+<!-- TODO make sure this is the actual output -->
 
 ```
 credential.nationality ≠ "United States"
 ```
-
-> The pretty-printer is currently part of our [Pallad wallet integration](https://github.com/palladians/pallad/pull/231). We plan to move it into the core lib.
 
 These points imply that the representation of a circuit has to be simple, and deserializable without concerns about malicious code execution.
 
@@ -220,13 +215,17 @@ Another reason is that modeling imported credentials as recursive proofs keeps o
 ### What imported credentials are available now?
 
 - ECDSA credential that wraps an Ethereum-style signature
+
 ```ts
-import { EcdsaEthereum } from 'mina-attestations/imported'
+import { EcdsaEthereum } from 'mina-attestations/imported';
 ```
+
 - [ZkPass](https://zkpass.org) validator signature (partially available, final version is [WIP](https://github.com/zksecurity/mina-attestations/pull/108))
+
 ```ts
 import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 ```
+
 - [WIP](https://github.com/zksecurity/mina-attestations/tree/main/src/email): zk-email
 - [WIP](https://github.com/piconbello/zk-passport-o1js-lib) (by another team): zk passport
 
