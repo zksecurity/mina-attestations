@@ -1,15 +1,15 @@
-import { assert, ByteUtils } from '../util.ts';
+import { assert, ByteUtils } from '../../util.ts';
 import {
   EcdsaEthereum,
   getHashHelper,
   parseSignature,
   verifyEthereumSignatureSimple,
-} from './ecdsa-credential.ts';
-import { owner } from '../../tests/test-utils.ts';
-import { Provable, Unconstrained } from 'o1js';
-import { DynamicBytes } from '../dynamic.ts';
-import { ZkPass, type ZkPassResponseItem } from './zkpass.ts';
-import { Credential } from '../credential-index.ts';
+} from '../ecdsa-credential.ts';
+import { owner } from '../../../tests/test-utils.ts';
+import { Provable, PublicKey, Unconstrained } from 'o1js';
+import { DynamicBytes } from '../../dynamic.ts';
+import { ZkPass, type ZkPassResponseItem } from '../zkpass.ts';
+import { Credential } from '../../credential-index.ts';
 
 const maxMessageLength = 128;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
@@ -27,12 +27,15 @@ await EcdsaEthereum.compileDependencies({
 console.timeEnd('compile dependencies');
 
 console.time('ecdsa create credential');
-const EcdsaCredential = await EcdsaEthereum.Credential({ maxMessageLength });
+const EcdsaCredentialPartial = await EcdsaEthereum.CredentialZkPassPartial({
+  maxMessageLength,
+});
 console.timeEnd('ecdsa create credential');
 
 console.time('ecdsa compile');
-let vk = await EcdsaCredential.compile();
+let vk = await EcdsaCredentialPartial.compile();
 console.timeEnd('ecdsa compile');
+console.log('vk.hash:', vk.hash.toJSON());
 
 // create ecdsa cred from zkpass data
 const schema = 'c7eab8b7d7e44b05b41b613fe548edf5';
@@ -58,8 +61,18 @@ let publicFieldsHash = ZkPass.genPublicFieldHash(
 // validate public fields hash
 assert('0x' + ByteUtils.toHex(publicFieldsHash) === response.publicFieldsHash);
 
-// compute message hash
-let message = ZkPass.encodeParameters(
+// compute allocator message hash
+let allocatorMessage = ZkPass.encodeParameters(
+  ['bytes32', 'bytes32', 'address'],
+  [
+    ByteUtils.fromString(response.taskId),
+    ByteUtils.fromString(schema),
+    ByteUtils.fromHex(response.validatorAddress),
+  ]
+);
+
+// compute validator message hash
+let validatorMessage = ZkPass.encodeParameters(
   ['bytes32', 'bytes32', 'bytes32', 'bytes32'],
   [
     ByteUtils.fromString(response.taskId),
@@ -68,18 +81,25 @@ let message = ZkPass.encodeParameters(
     publicFieldsHash,
   ]
 );
-console.log('message length', message.length);
+console.log('validator message length', validatorMessage.length);
 
-let { signature, parityBit } = parseSignature(response.validatorSignature);
-let address = ByteUtils.fromHex(response.validatorAddress);
+let { signature: validatorSignature, parityBit: validatorParityBit } =
+  parseSignature(response.validatorSignature);
+let validatorAddress = ByteUtils.fromHex(response.validatorAddress);
+let { signature: allocatorSignature, parityBit: allocatorParityBit } =
+  parseSignature(response.allocatorSignature);
+let allocatorAddress = ByteUtils.fromHex(response.allocatorAddress);
 
 function simpleCircuit() {
-  let messageVar = Provable.witness(Message, () => message);
-  let signatureVar = Provable.witness(EcdsaEthereum.Signature, () => signature);
-  let addressVar = Provable.witness(EcdsaEthereum.Address, () =>
-    EcdsaEthereum.Address.from(address)
+  let messageVar = Provable.witness(Message, () => validatorMessage);
+  let signatureVar = Provable.witness(
+    EcdsaEthereum.Signature,
+    () => validatorSignature
   );
-  let parityBitVar = Unconstrained.witness(() => parityBit);
+  let addressVar = Provable.witness(EcdsaEthereum.Address, () =>
+    EcdsaEthereum.Address.from(validatorAddress)
+  );
+  let parityBitVar = Unconstrained.witness(() => validatorParityBit);
 
   verifyEthereumSignatureSimple(
     messageVar,
@@ -101,18 +121,45 @@ console.log(cs.summary());
 console.timeEnd('ecdsa constraints (simple)');
 
 console.time('ecdsa constraints (recursive)');
-let csRec = (await EcdsaCredential.program.analyzeMethods()).run;
+let csRec = (await EcdsaCredentialPartial.program.analyzeMethods()).run;
 console.log(csRec.summary());
 console.timeEnd('ecdsa constraints (recursive)');
 
 console.time('ecdsa prove');
-let credential = await EcdsaCredential.create({
+let credential = await EcdsaCredentialPartial.create({
   owner,
-  publicInput: { signerAddress: EcdsaEthereum.Address.from(address) },
-  privateInput: { message, signature, parityBit },
+  publicInput: {
+    allocatorMessage,
+    allocatorSignature,
+    allocatorParityBit,
+    allocatorAddress: EcdsaEthereum.Address.from(allocatorAddress),
+  },
+  privateInput: {
+    validatorMessage,
+    validatorSignature,
+    validatorParityBit,
+    validatorAddress: EcdsaEthereum.Address.from(validatorAddress),
+  },
 });
 console.timeEnd('ecdsa prove');
+
+console.log(
+  'zkpasstest::credential.witness.vk.hash:',
+  credential.witness.vk.hash.toJSON()
+);
 
 let json = Credential.toJSON(credential);
 let recovered = await Credential.fromJSON(json);
 await Credential.validate(recovered);
+
+/******************************************/
+const cred = await ZkPass.importCredentialPartial(
+  PublicKey.fromBase58(
+    'B62qmb5sdmFDTDi63wHk2S4GLu5tN2Rofrjp9HwdPPNGUgUGv21GEUi'
+  ),
+  schema,
+  response
+);
+
+console.log('zkpasstest::cred.witness.vk.hash:', cred.witness.vk.hash.toJSON());
+console.log('zkpasstest::Credential.toJSON(cred):', Credential.toJSON(cred));
