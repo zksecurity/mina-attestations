@@ -244,7 +244,25 @@ import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 
 ### `CredentialSpec`
 
-A `CredentialSpec` defines the structure and verification logic for a credential. It specifies:
+A `CredentialSpec` defines the structure and verification logic for a credential.
+
+```typescript
+type CredentialSpec<Witness = unknown, Data = unknown> = {
+  credentialType: CredentialType;
+  data: NestedProvableFor<Data>;
+  witness: WitnessSpec;
+
+  witnessType(type: WitnessSpec): NestedProvableFor<Witness>;
+
+  verify(witness: Witness, credHash: Field): void;
+  issuer(witness: Witness): Field;
+  validate(witness: Witness, credHash: Field): Promise<void>;
+
+  matchesSpec(witness: Witness): boolean;
+};
+```
+
+It specifies:
 
 - The credential type (native, imported, unsigned)
 - The data schema
@@ -347,7 +365,18 @@ const unsignedCredential = Credential.unsigned({
 
 ### `StoredCredential`
 
-A `StoredCredential` represents a credential in its stored form, containing all necessary data for verification and usage in presentations. It specifies:
+A `StoredCredential` represents a credential in its stored form, containing all necessary data for verification and usage in presentations.
+
+```typescript
+type StoredCredential<Data = unknown, Witness = unknown> = {
+  version: 'v0';
+  witness: Witness;
+  metadata: JSONValue | undefined;
+  credential: Credential<Data>;
+};
+```
+
+It specifies:
 
 - A version identifier for future compatibility
 - A witness that provides verification data that proves the credential's authenticity
@@ -361,6 +390,33 @@ A `StoredCredential` represents a credential in its stored form, containing all 
   - The data that contains the actual credential attributes
 
 The serialization and deserialization of a `StoredCredential` is handled through methods in the `Credential` namespace using `Credential.toJSON(...)` and `Credential.fromJSON(...)`.
+
+#### Credential types
+
+```typescript
+// Native credential type
+type Native<Data> = StoredCredential<
+  Data,
+  {
+    type: 'native';
+    issuer: PublicKey;
+    issuerSignature: Signature;
+  }
+>;
+
+// Imported credential type
+type Imported<Data, Input> = StoredCredential<
+  Data,
+  {
+    type: 'imported';
+    vk: VerificationKey;
+    proof: DynamicProof<Input, Credential>;
+  }
+>;
+
+// Unsigned credential type
+type Unsigned<Data> = StoredCredential<Data, undefined>;
+```
 
 ### `Credential`
 
@@ -465,33 +521,6 @@ const json = Credential.toJSON(credential);
 // Deserialize and validate
 const recovered = await Credential.fromJSON(json);
 await Credential.validate(recovered);
-```
-
-#### Credential types
-
-```typescript
-// Native credential type
-type Native<Data> = StoredCredential<
-  Data,
-  {
-    type: 'native';
-    issuer: PublicKey;
-    issuerSignature: Signature;
-  }
->;
-
-// Imported credential type
-type Imported<Data, Input> = StoredCredential<
-  Data,
-  {
-    type: 'imported';
-    vk: VerificationKey;
-    proof: DynamicProof<Input, Credential>;
-  }
->;
-
-// Unsigned credential type
-type Unsigned<Data> = StoredCredential<Data, undefined>;
 ```
 
 ### Creating credentials
