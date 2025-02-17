@@ -235,12 +235,110 @@ import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 
 <!-- highlight how to serialize every type -->
 
-- `CredentialSpec`
+- [`CredentialSpec`](#credentialspec)
 - `StoredCredential`
   - `Credential`
 - `PresentationRequest`
   - `PresentationSpec`
 - `Presentation`
+
+### `CredentialSpec`
+
+A `CredentialSpec` defines the structure and verification logic for a credential. It specifies:
+
+- The credential type (unsigned, native, imported)
+- The data schema
+- A "witness" type for private parameters
+- A function `verify(...)` that verifies the credential inside a ZkProgram circuit
+- A function `validate(...)` that verifies the credential in normal JS
+- A function `issuer(...)` that derives a commitment to the "issuer" of the credential, e.g. a public key for signed credentials
+- A function `matchesSpec(...)` that decides whether a stored credential's witness matches the spec
+
+#### Native Credential example
+
+```typescript
+import { Field, Bytes } from 'o1js';
+import { Credential } from 'mina-attestations';
+
+// Define schema with a fixed-size Bytes type
+const Bytes32 = Bytes(32);
+const InputData = {
+  age: Field,
+  name: Bytes32,
+};
+
+// Create native credential spec
+const SignedData = Credential.Native(InputData);
+
+// Issue a credential using the spec
+const data = {
+  age: Field(25),
+  name: Bytes32.fromString('Alice'),
+};
+const signedCredential = Credential.sign(issuerKey, { owner, data });
+
+// Validate the credential
+await Credential.validate(signedCredential);
+```
+
+#### Imported Credential example
+
+```typescript
+import { Field, UInt64 } from 'o1js';
+import { Credential, DynamicString } from 'mina-attestations';
+
+const Nationality = DynamicString({ maxLength: 50 });
+
+// Create imported credential spec
+const PassportCredential = await Credential.Imported.fromMethod(
+  {
+    name: 'passport',
+    publicInput: { issuer: Field },
+    privateInput: {
+      nationality: Nationality,
+      expiresAt: UInt64,
+    },
+    data: {
+      nationality: Nationality,
+      expiresAt: UInt64,
+    },
+  },
+  async ({ privateInput }) => {
+    return privateInput;
+  }
+);
+
+// Create a credential with proof
+const passport = await PassportCredential.create({
+  owner,
+  publicInput: { issuer: 1001 },
+  privateInput: {
+    expiresAt: UInt64.from(Date.UTC(2027, 1, 1)),
+    nationality: 'Austria',
+  },
+});
+
+// Validate the credential
+await Credential.validate(passport);
+```
+
+#### Unsigned Credential example
+
+```typescript
+import { Field } from 'o1js';
+import { Credential } from 'mina-attestations';
+
+// Define simple schema
+const InputData = { value: Field };
+
+// Create unsigned credential spec
+const UnsignedSpec = Credential.Unsigned(InputData);
+
+// Create an unsigned credential
+const unsignedCredential = Credential.unsigned({
+  value: Field(123),
+});
+```
 
 ### Creating credentials
 
