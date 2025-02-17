@@ -237,9 +237,9 @@ import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 
 - [`CredentialSpec`](#credentialspec)
 - [`StoredCredential`](#storedcredential)
-  - `Credential`
+  - [`Credential`](#credential)
 - `PresentationRequest`
-  - `PresentationSpec`
+  - [`PresentationSpec`](#defining-presentation-logic)
 - `Presentation`
 
 ### `CredentialSpec`
@@ -917,23 +917,23 @@ const Operation = {
   computation: (...args: Inputs) => Output
 ): Node<Output>`
   - Enables defining custom computations on input values
-  - Example:
-    ```typescript
-    Operation.compute(
-      [
-        Operation.property(position, 'x'),
-        Operation.property(position, 'y'),
-        Operation.property(center, 'x'),
-        Operation.property(center, 'y'),
-      ],
-      Field,
-      (px, py, cx, cy) => {
-        const dx = px.sub(cx);
-        const dy = py.sub(cy);
-        return dx.mul(dx).add(dy.mul(dy));
-      }
-    );
-    ```
+    - Example:
+      ```typescript
+      Operation.compute(
+        [
+          Operation.property(position, 'x'),
+          Operation.property(position, 'y'),
+          Operation.property(center, 'x'),
+          Operation.property(center, 'y'),
+        ],
+        Field,
+        (px, py, cx, cy) => {
+          const dx = px.sub(cx);
+          const dy = py.sub(cy);
+          return dx.mul(dx).add(dy.mul(dy));
+        }
+      );
+      ```
 
 - Hashing:
   - `Operation.hash(...inputs: Node[]): Node<Field>` - Hash one or more values
