@@ -764,6 +764,216 @@ Credential.Imported.create({
 
 ### Defining presentation logic
 
+The `Spec` function and `Operation` namespace provide the core functionality for defining the logic of presentations - what should be proven about credentials and what data should be revealed.
+
+#### `Spec`
+
+```typescript
+type Spec<
+  Output = unknown,
+  Inputs extends Record<string, Input> = Record<string, Input>
+> = {
+  inputs: Inputs;
+  assert: Node<Bool>;
+  outputClaim: Node<Output>;
+};
+```
+
+The `Spec` function specifies a ZkProgram that verifies and selectively discloses data.
+
+```typescript
+function Spec<Output, Inputs extends Record<string, Input>>(
+  inputs: Inputs,
+  spec: (inputs: {
+    [K in keyof Inputs]: InputToNode<Inputs[K]>;
+  }) => {
+    assert?: Node<Bool> | Node<Bool>[];
+    outputClaim: Node<Output>;
+  }
+): Spec<Output, Inputs>;
+
+// variant without data output
+function Spec<Inputs extends Record<string, Input>>(
+  inputs: Inputs,
+  spec: (inputs: {
+    [K in keyof Inputs]: InputToNode<Inputs[K]>;
+  }) => {
+    assert?: Node<Bool> | Node<Bool>[];
+  }
+): Spec<undefined, Inputs>;
+```
+
+A presentation specification consists of:
+
+- Input definitions - This can either be a [`CredentialSpec`](#credentialspec), a `Constant` or a `Claim`
+  - `Constant`: Defined at the time of creating the `Spec`
+    ```typescript
+    function Constant<DataType extends ProvableType>(
+      data: DataType,
+      value: From<DataType>
+    ): Constant<InferProvable<DataType>>;
+    ```
+  - `Claim`: Public inputs to the ZkProgram
+    ```typescript
+    function Claim<DataType extends NestedProvable>(
+      data: DataType
+    ): Claim<InferNestedProvable<DataType>>;
+    ```
+- Assertion logic - What to prove about the inputs
+  - A `Node` or an array of `Node`s evaluating to Bool values
+- Output logic - What data to reveal publicly
+  - A `Node` of the generic `Output` type
+
+> The `Node` type respresents an operation or value in a presentation's circuit. It's the foundational type used throughout the Operation DSL. It is a discriminated union type with a `type` field identifying the operation. Nodes are evaluated when creating or verifying a presentation. The `Node.eval` function handles this internally. While you typically don't create Node objects directly, understanding their structure helps when working with the Operation DSL. Each Operation function returns a Node that represents that operation or value in the circuit.
+
+#### `Operation`
+
+The `Operation` namespace provides a DSL for writing circuit logic.
+
+```ts
+const Operation = {
+  owner: { type: 'owner' } as Node<PublicKey>,
+  constant<Data>(data: Data): Node<Data> {
+    return { type: 'constant', data };
+  },
+
+  issuer,
+  issuerPublicKey,
+  verificationKeyHash,
+  publicInput,
+
+  property,
+  record,
+  equals,
+  equalsOneOf,
+  lessThan,
+  lessThanEq,
+  add,
+  sub,
+  mul,
+  div,
+  and,
+  or,
+  not,
+  hash,
+  hashWithPrefix,
+  ifThenElse,
+  compute,
+};
+```
+
+- Basic operations:
+
+  - `Operation.equals(left: Node, right: Node)`: Assert equality
+  - `Operation.equalsOneOf(input: Node<Data>, options: Node<Data>[] | Node<Data[]> | Node<DynamicArray<Data>>): Asserts if a value equals one of several options
+  - `Operation.not(inner: Node<Bool>)`: Logical NOT
+  - `Operation.and(...inputs: Node<Bool>[])`: Logical AND
+  - `Operation.or(left: Node<Bool>, right: Node<Bool>)`: Logical OR
+
+- Comparisons:
+
+  - `Operation.lessThan(left: Node, right: Node)`: Asserts if `left` is less than `right`
+  - `Operation.lessThanEq(left: Node, right: Node)`: Asserts if `left` is less than or equal to `right`
+
+- Arithmetic:
+
+  - `Operation.add(left: Node, right: Node)` - Addition
+  - `Operation.sub(left: Node, right: Node)` - Subtraction
+  - `Operation.mul(left: Node, right: Node)` - Multiplication
+  - `Operation.div(left: Node, right: Node)` - Division
+
+- Data access:
+
+  - `Operation.propery(node: Node, key: string)` - Access object propery
+  - `Opeartion.record(data: Record<string, Node>)` - Create record from nodes
+  - `Opeartion.constant(data: T)` - Create constant value
+
+- Credential-specific:
+
+  - `Operation.owner` - Access credential owner
+  - `Operation.issuer(credential: CredentialNode)` - Get credential issuer
+  - `Operation.issuerPublicKey(credential: CredentialNode)` - Get issuer's public key
+  - `Operation.verificationKeyHash(credential: CredentialNode)` - Get verification key hash
+  - `Operation.publicInput(credential: CredentialNode)` - Get credential's public input
+
+- Conditional logic:
+
+  - `Operation.ifThenElse( condition: Node<Bool>, thenNode: Node, elseNode: Node)`
+  - Allows for branching logic based on a condition
+    - Example:
+      ```ts
+      let result = Operation.ifThenElse(
+        Operation.lessThan(age, threshold),
+        Operation.constant(Field(0)), // If age < threshold
+        Operation.property(data, 'age') // Otherwise return actual age
+      );
+      ```
+
+- Custom computation:
+
+  - `Operation.compute<Inputs extends readonly Node[], Output>(
+  inputs: [...Inputs],
+  outputType: ProvableType<Output>,
+  computation: (...args: Inputs) => Output
+): Node<Output>`
+  - Enables defining custom computations on input values
+  - Example:
+    ```typescript
+    Operation.compute(
+      [
+        Operation.property(position, 'x'),
+        Operation.property(position, 'y'),
+        Operation.property(center, 'x'),
+        Operation.property(center, 'y'),
+      ],
+      Field,
+      (px, py, cx, cy) => {
+        const dx = px.sub(cx);
+        const dy = py.sub(cy);
+        return dx.mul(dx).add(dy.mul(dy));
+      }
+    );
+    ```
+
+- Hashing:
+  - `Operation.hash(...inputs: Node[]): Node<Field>` - Hash one or more values
+  - `Operation.hashWithPrefix(prefix: string, ...inputs: Node[]): Node<Field>` - Hash with a domain separator prefix
+
+Example:
+
+```typescript
+let spec = PresentationSpec(
+  { passport: PassportCredential.spec, createdAt: Claim(UInt64) },
+  ({ passport, createdAt }) => ({
+    assert: [
+      // not from the United States
+      Operation.not(
+        Operation.equals(
+          Operation.property(passport, 'nationality'),
+          Operation.constant(
+            PassportCredential.Nationality.from('United States')
+          )
+        )
+      ),
+
+      // passport is not expired
+      Operation.lessThanEq(
+        createdAt,
+        Operation.property(passport, 'expiresAt')
+      ),
+
+      // hard-code passport verification key
+      Operation.equals(
+        Operation.verificationKeyHash(passport),
+        Operation.constant(vk.hash)
+      ),
+    ],
+    // return public input (passport issuer hash) for verification
+    outputClaim: Operation.publicInput(passport),
+  })
+);
+```
+
 <!-- Both `assert` and `outputClaim` are optional, so the following would define a circuit without any custom logic:
 
 ```ts
