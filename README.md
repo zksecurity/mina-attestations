@@ -498,13 +498,249 @@ type Unsigned<Data> = StoredCredential<Data, undefined>;
 
 The `Credentail` namespace provides several methods to help create different types of credentials:
 
+#### Native Credential
+
+`Credential.sign<Data>(issuerPrivateKey: PrivateKey, credentialInput: Credential<Data> | string, metadata?: JSONValue): Native<Data>`
+
+- Creates a new native credential signed by the issuer
+- Parameters:
+  - `issuerPrivateKey`: The private key of the issuer
+  - `credentialInput`: Either a credential object of its JSON string representation
+  - `metadata`: Optional metadata to attach to the credential
+- Returns:
+  - A new native credential
+
+Example:
+
+```typescript
+let data = { age: Field(18), name: Bytes32.fromString('Alice') };
+let signedData = Credential.sign(issuerKey, { owner, data });
+```
+
+#### Unsigned Credential
+
+`Credential.unsigned<Data>(data: Data, metadata?: JSONValue): Unsigned<Data>`
+
+- Creates a new unsigned, dummy credential with no owner and no signature
+- Parameters:
+  - `data`: The credential data
+  - `metadata`: Optional metadata to attach to the credential
+- Returns:
+  - A new unsigned credential
+
+Example:
+
+```typescript
+const unsignedCredential = Credential.unsigned({
+  value: Field(123),
+});
+```
+
+#### Imported Credential
+
+To import credentials we have to use the `Credential.Imported` namespace and follow the following pattern:
+
+1. First create the specification using fromMethod or fromProgram
+2. Get back an object that contains both the spec and helper functions
+3. Use the create function that came with that object to create actual credentials
+
+Methods to create specifications:
+
+`Credential.Imported.fromProgram(program)`
+
+Creates an imported credential specification from an existing o1js ZkProgram.
+
+```typescript
+async function fromProgram
+  DataType extends ProvableType,
+  InputType extends ProvableType,
+  Data extends InferProvable<DataType>,
+  Input extends InferProvable<InputType>,
+  AllInputs extends any[]
+>(program: {
+  publicInputType: InputType;            // Type of public inputs
+  publicOutputType: ProvableType<Credential<Data>>; // Output must be a credential
+  analyzeMethods(): Promise<Record<string, any>>;   // For analysis
+  maxProofsVerified(): Promise<0 | 1 | 2>;         // Max proofs to verify
+  compile(options?: {                    // Compilation
+    cache?: Cache;
+    forceRecompile?: boolean;
+    proofsEnabled?: boolean;
+  }): Promise<{ verificationKey: VerificationKey }>;
+
+  run(...inputs: AllInputs): Promise<{   // Program execution
+    proof: Proof<Input, Credential<Data>>;
+    auxiliaryOutput: undefined;
+  }>;
+}): Promise<{
+  spec: CredentialSpec;          // The credential specification
+  program: Program;             // The original program
+  compile(): Promise<VerificationKey>;  // Compile the program
+  create(...inputs: AllInputs): Promise<Imported<Data, Input>>;  // Create credential
+  fromProof(proof: Proof<Input, Credential<Data>>, vk: VerificationKey): Promise<Imported<Data, Input>>;  // Create from existing proof
+  dummy(credential: Credential<From<DataType>>): Promise<Imported<Data, Input>>;  // Create dummy credential
+}>;
+```
+
+Example:
+
+```typescript
+import { Field, Bytes, PublicKey, ZkProgram, Struct, Proof } from 'o1js';
+import { Credential } from 'mina-attestations';
+import { owner } from './test-utils.ts'; // dummy owner used for testing
+
+const Bytes32 = Bytes(32);
+const InputData = { age: Field, name: Bytes32 };
+
+// Create a program that outputs a credential with InputData
+const program = ZkProgram({
+  name: 'importedCredential',
+  publicInput: {
+    // Matches the Spec claims
+    inputOwner: PublicKey,
+    data: InputData,
+  },
+  publicOutput: Struct({
+    // Matches Operation.record output
+    owner: PublicKey,
+    data: InputData,
+  }),
+  methods: {
+    create: {
+      privateInputs: [], // No private inputs needed
+      method(publicInput: { inputOwner: PublicKey; data: typeof InputData }) {
+        // Simply pass through the input as credential
+        return {
+          publicOutput: {
+            owner: publicInput.inputOwner,
+            data: publicInput.data,
+          },
+        };
+      },
+    },
+  },
+});
+
+// Create imported credential specification from program
+const Imported = await Credential.Imported.fromProgram(program);
+
+// Create verification key
+const vk = await Imported.compile();
+
+// Create credential data
+let data = {
+  age: Field(18),
+  name: Bytes32.fromString('Alice'),
+};
+
+// First create a proof using the program directly
+const { proof } = await program.create({
+  inputOwner: owner,
+  data: data,
+});
+
+// Create a credential using fromProof
+let provedData = await Imported.fromProof(proof, vk);
+
+// Create a credential using create
+let provedData2 = await Imported.create({
+  inputOwner: owner, // Public inputs match program's publicInput type
+  data: data,
+});
+```
+
+`Credential.Imported.fromMethod(config, method)`
+
+Creates an imported credential spec from a configuration object and method.
+
+```typescript
+async function fromMethod<
+  Config extends {
+    name: string;
+    publicInput?: NestedProvable; // Optional public input type
+    privateInput?: NestedProvable; // Optional private input type
+    data: NestedProvable; // Credential data type
+  }
+>(
+  spec: Config,
+  method: (inputs: {
+    publicInput: PublicInput<Config>;
+    privateInput: PrivateInput<Config>;
+    owner: PublicKey;
+  }) => Promise<Data<Config>>
+): Promise<{
+  spec: CredentialSpec;
+  create(inputs: {
+    publicInput: From<PublicInputType>;
+    privateInput: From<PrivateInputType>;
+    owner: PublicKey;
+  }): Promise<Imported<Data, Input>>;
+}>;
+```
+
+Example:
+
+```typescript
+import { Field, UInt64 } from 'o1js';
+import { Credential, DynamicString } from 'mina-attestations';
+
+const Nationality = DynamicString({ maxLength: 50 });
+
+let PassportCredential_ = await Credential.Imported.fromMethod(
+  {
+    name: 'passport',
+    publicInput: { issuer: Field },
+    privateInput: { nationality: Nationality, expiresAt: UInt64 },
+    data: { nationality: Nationality, expiresAt: UInt64 },
+  },
+  async ({ privateInput }) => {
+    return privateInput;
+  }
+);
+let PassportCredential = Object.assign(PassportCredential_, { Nationality });
+let vk = await PassportCredential.compile();
+
+// user "imports" their passport into a credential, by creating a PassportCredential proof
+let cred = await PassportCredential.create({
+  owner,
+  publicInput: { issuer: 1001 },
+  privateInput: {
+    expiresAt: UInt64.from(Date.UTC(2027, 1, 1)),
+    nationality: 'Austria',
+  },
+});
+```
+
+`Credential.Imported.create(data, witness)`
+
+Creates an imported credential specification by directly specifying the data type and witness specification
+
+```typescript
+function create<DataType extends NestedProvable, InputType extends ProvableType>({
+  data: DataType;                // Schema for the credential data
+  witness: ImportedWitnessSpec;  // Specification for the witness/proof
+}): CredentialSpec<ImportedWitness<Input>, Data>
+```
+
+Example:
+
+```typescript
+Credential.Imported.create({
+  data: Field,
+  witness: ProofSpec,
+});
+```
+
+> This is a lower-level method compared to `fromMethod` or `fromProgram`. It's used internally by those methods but can also be used directly when you need full control over the witness specification.
+
 ### Defining presentation logic
 
 <!-- Both `assert` and `outputClaim` are optional, so the following would define a circuit without any custom logic:
 
 ```ts
 
-```
+````
+
 -->
 
 ### Requesting presentations
