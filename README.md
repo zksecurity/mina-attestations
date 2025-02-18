@@ -246,7 +246,7 @@ import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 
 A `CredentialSpec` defines the structure and verification logic for a credential.
 
-```typescript
+```ts
 type CredentialSpec<Witness = unknown, Data = unknown> = {
   credentialType: CredentialType;
   data: NestedProvableFor<Data>;
@@ -279,7 +279,7 @@ The serialization and deserialization of a `CredentialSpec` is handled through m
 
 #### Native Credential example
 
-```typescript
+```ts
 import { Field, Bytes } from 'o1js';
 import { Credential } from 'mina-attestations';
 
@@ -306,7 +306,7 @@ await Credential.validate(signedCredential);
 
 #### Imported Credential example
 
-```typescript
+```ts
 import { Field, UInt64 } from 'o1js';
 import { Credential, DynamicString } from 'mina-attestations';
 
@@ -347,7 +347,7 @@ await Credential.validate(passport);
 
 #### Unsigned Credential example
 
-```typescript
+```ts
 import { Field } from 'o1js';
 import { Credential } from 'mina-attestations';
 
@@ -367,7 +367,7 @@ const unsignedCredential = Credential.unsigned({
 
 A `StoredCredential` represents a credential in its stored form, containing all necessary data for verification and usage in presentations.
 
-```typescript
+```ts
 type StoredCredential<Data = unknown, Witness = unknown> = {
   version: 'v0';
   witness: Witness;
@@ -393,7 +393,7 @@ The serialization and deserialization of a `StoredCredential` is handled through
 
 #### Credential types
 
-```typescript
+```ts
 // Native credential type
 type Native<Data> = StoredCredential<
   Data,
@@ -486,7 +486,7 @@ It also specifies the following methods:
     - JSON string representation of credential data
   - Example:
 
-    ```typescript
+    ```ts
     let credentialData = { owner: publicKey, data: { name: 'Alice' } };
     let credentialDataJson = Credential.dataToJSON(credentialData);
 
@@ -495,7 +495,7 @@ It also specifies the following methods:
 
 #### Credential example
 
-```typescript
+```ts
 import { Field, PrivateKey } from 'o1js';
 import { Credential } from 'mina-attestations';
 
@@ -541,7 +541,7 @@ The `Credentail` namespace provides several methods to help create different typ
 
 Example:
 
-```typescript
+```ts
 let data = { age: Field(18), name: Bytes32.fromString('Alice') };
 let signedData = Credential.sign(issuerKey, { owner, data });
 ```
@@ -559,7 +559,7 @@ let signedData = Credential.sign(issuerKey, { owner, data });
 
 Example:
 
-```typescript
+```ts
 const unsignedCredential = Credential.unsigned({
   value: Field(123),
 });
@@ -579,7 +579,7 @@ Methods to create specifications:
 
 Creates an imported credential specification from an existing o1js ZkProgram.
 
-```typescript
+```ts
 async function fromProgram
   DataType extends ProvableType,
   InputType extends ProvableType,
@@ -613,7 +613,7 @@ async function fromProgram
 
 Example:
 
-```typescript
+```ts
 import { Field, Bytes, PublicKey, ZkProgram, Struct, Proof } from 'o1js';
 import { Credential } from 'mina-attestations';
 import { owner } from './test-utils.ts'; // dummy owner used for testing
@@ -682,7 +682,7 @@ let provedData2 = await Imported.create({
 
 Creates an imported credential spec from a configuration object and method.
 
-```typescript
+```ts
 async function fromMethod<
   Config extends {
     name: string;
@@ -709,7 +709,7 @@ async function fromMethod<
 
 Example:
 
-```typescript
+```ts
 import { Field, UInt64 } from 'o1js';
 import { Credential, DynamicString } from 'mina-attestations';
 
@@ -744,7 +744,7 @@ let cred = await PassportCredential.create({
 
 Creates an imported credential specification by directly specifying the data type and witness specification
 
-```typescript
+```ts
 function create<DataType extends NestedProvable, InputType extends ProvableType>({
   data: DataType;                // Schema for the credential data
   witness: ImportedWitnessSpec;  // Specification for the witness/proof
@@ -753,7 +753,7 @@ function create<DataType extends NestedProvable, InputType extends ProvableType>
 
 Example:
 
-```typescript
+```ts
 Credential.Imported.create({
   data: Field,
   witness: ProofSpec,
@@ -768,7 +768,7 @@ The `Spec` function and `Operation` namespace provide the core functionality for
 
 #### `Spec`
 
-```typescript
+```ts
 type Spec<
   Output = unknown,
   Inputs extends Record<string, Input> = Record<string, Input>
@@ -781,7 +781,7 @@ type Spec<
 
 The `Spec` function specifies a ZkProgram that verifies and selectively discloses data.
 
-```typescript
+```ts
 function Spec<Output, Inputs extends Record<string, Input>>(
   inputs: Inputs,
   spec: (inputs: {
@@ -807,14 +807,14 @@ A presentation specification consists of:
 
 - Input definitions - This can either be a [`CredentialSpec`](#credentialspec), a `Constant` or a `Claim`
   - `Constant`: Defined at the time of creating the `Spec`
-    ```typescript
+    ```ts
     function Constant<DataType extends ProvableType>(
       data: DataType,
       value: From<DataType>
     ): Constant<InferProvable<DataType>>;
     ```
   - `Claim`: Public inputs to the ZkProgram
-    ```typescript
+    ```ts
     function Claim<DataType extends NestedProvable>(
       data: DataType
     ): Claim<InferNestedProvable<DataType>>;
@@ -918,7 +918,7 @@ const Operation = {
 ): Node<Output>`
   - Enables defining custom computations on input values
     - Example:
-      ```typescript
+      ```ts
       Operation.compute(
         [
           Operation.property(position, 'x'),
@@ -941,7 +941,7 @@ const Operation = {
 
 Example:
 
-```typescript
+```ts
 let spec = PresentationSpec(
   { passport: PassportCredential.spec, createdAt: Claim(UInt64) },
   ({ passport, createdAt }) => ({
@@ -974,13 +974,46 @@ let spec = PresentationSpec(
 );
 ```
 
-<!-- Both `assert` and `outputClaim` are optional, so the following would define a circuit without any custom logic:
+#### Optional Logic in Specs
+
+Both `assert` and `outputClaim` are optional in a presentation spec. When defining simple presentations or when you only need part of the functionality, you can omit either or both:
 
 ```ts
+// Spec with no custom logic
+let spec = Spec(
+  { credential: Credential.Native(someSchema) },
+  () => ({}) // Empty logic - no assertions, no output
+);
 
-````
+// Spec with only assertions
+let assertOnlySpec = Spec(
+  { credential: Credential.Native(someSchema) },
+  ({ credential }) => ({
+    assert: Operation.lessThan(
+      Operation.property(credential, 'age'),
+      Operation.constant(Field(18))
+    ),
+    // No outputClaim - nothing is revealed
+  })
+);
 
--->
+// Spec with only output
+let outputOnlySpec = Spec(
+  { credential: Credential.Native(someSchema) },
+  ({ credential }) => ({
+    // No assert - no conditions to verify
+    outputClaim: Operation.property(credential, 'publicInfo'),
+  })
+);
+```
+
+When parts are omitted:
+
+- If `assert` is omitted, it defaults to `Operation.constant(Bool(true))`
+- If `outputClaim` is omitted, it defaults to `Operation.constant(undefined)`
+- If both are omitted, the presentation will just verify the authenticity of the credentials without making any additional claims
+
+> Even without custom logic, the presentation still verifies the validity of all input credentials and the owner's signature authorizing the presentation
 
 ### Requesting presentations
 
