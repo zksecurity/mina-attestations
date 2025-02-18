@@ -1771,6 +1771,60 @@ const presentation = await Presentation.finalize(
 
 ### Verifying presentations
 
+The `Presentation` namespace provides functionality to verify presentations against their original requests.
+
+```ts
+async function verify<R extends PresentationRequest>(
+  request: R,
+  presentation: Presentation<any, Record<string, any>>,
+  context: WalletContext<R>
+): Promise<Output<R>>;
+```
+
+Verifies a presentation against a request and context. This function:
+
+- Verifies the zero-knowledge proof contained in the presentation
+- Checks that the presentation was created for this specific request
+- Checks that the presentation is bound to the expected context
+- Returns the verified output claim, which can be used for further application-specific validation
+
+Parameters:
+
+- `request`: The original presentation request
+- `presentation`: The presentation to verify
+- `context`: The verifier's identity
+  - For HTTPS requests: `{ verifierIdentity: string }`
+  - For zkApp requests: `{ verifierIdentity: PublicKey }`
+
+Returns:
+
+- Promise resolving to the verifies output claim specified in the presentation spec
+
+The verification process includes several key steps:
+
+1. Recomputing the context hash using the request's `inputContext`, provided `context`, and original `claims`
+2. Verifying the proof agains the request's verification key
+3. Checking that the proof's public inputs match the recomputed context and claims
+4. Extracting and returning the verified output claim
+
+Example from [`examples/unique-hash.eg.ts`](./examples/unique-hash.eg.ts):
+
+```ts
+// VERIFIER: verify the presentation
+let output = await Presentation.verify(
+  request,
+  Presentation.fromJSON(presentationJson),
+  { verifierIdentity: 'my-app.xyz' }
+);
+
+// After verifying the proof itself, perform application-specific checks.
+// In this case, verify that the passport was issued by a legitimate authority
+// by checking if the issuer (exposed in the presentation's output claim)
+// is in our list of accepted issuers
+let acceptedIssuers = [1001n, 1203981n, 21380123n]; // list of accepted issuers
+assert(acceptedIssuers.includes(output.issuer.toBigInt()), 'Invalid issuer');
+```
+
 ### Defining new imported credentials
 
 ## Bonus: `mina-attestations/dynamic`
