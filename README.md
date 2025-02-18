@@ -862,18 +862,18 @@ const Operation = {
 };
 ```
 
-- Basic operations:
+- Comparisons:
 
   - `Operation.equals(left: Node, right: Node)` - Assert equality
   - `Operation.equalsOneOf(input: Node<Data>, options: Node<Data>[] | Node<Data[]> | Node<DynamicArray<Data>>)` - Asserts if a value equals one of several options
+  - `Operation.lessThan(left: Node, right: Node)` - Asserts if `left` is less than `right`
+  - `Operation.lessThanEq(left: Node, right: Node)` - Asserts if `left` is less than or equal to `right`
+
+- Boolean Logic
+
   - `Operation.not(inner: Node<Bool>)` - Logical NOT
   - `Operation.and(...inputs: Node<Bool>[])` - Logical AND
   - `Operation.or(left: Node<Bool>, right: Node<Bool>)` - Logical OR
-
-- Comparisons:
-
-  - `Operation.lessThan(left: Node, right: Node)` - Asserts if `left` is less than `right`
-  - `Operation.lessThanEq(left: Node, right: Node)` - Asserts if `left` is less than or equal to `right`
 
 - Arithmetic:
 
