@@ -1624,7 +1624,7 @@ Each credential can optionally include a `key` property that explicitly maps it 
 
 The system matches credentials to the inputs in your presentation spec in two ways:
 
-1. Explicit Mathing (using keys):
+1. Explicit Matching (using keys):
 
 ```ts
 // Presentation spec with two credential inputs
