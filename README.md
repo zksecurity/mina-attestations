@@ -128,7 +128,7 @@ let spec = PresentationSpec(
 
 There's much to unpack in this example, but the main thing we want to highlight is how custom logic for a presentation is defined, the _presentation spec_. This spec is created using a declarative API that specifies a custom zk circuit.
 
-The first parameter to `PresentiationSpec()` specifies the inputs to the presentation circuit: `credential` and `createdAt`.
+The first parameter to `PresentationSpec()` specifies the inputs to the presentation circuit: `credential` and `createdAt`.
 
 - `credential` defines what _type_ of credential we expect, including the data layout. Here, we expect a "native" credential defined with `Credential.Native()` (see [credential kinds](#credential-kinds)).
 - `createdAt` is a so-called "claim", which means a _public input_ to this circuit. By contrast, the credential is a _private_ input.
@@ -208,7 +208,7 @@ By contrast to the original zk-email project, the imported credential version wo
 
 The process of first importing a credential, and then using it for a presentation, means that _two_ proofs have to be created by a user. Why not do both in one proof, if possible?
 
-One reason for prefering separate steps is that the importing proof is usually very big, and takes a lot of time. On the other hand, presentation proofs are small. Also, presentations are one-off and designed to be used exactly once, so you really _want_ those proofs to be small. On the other hand, credentials are designed to be stored long-term, so separating them saves a lot of proof generation time if credentials can be reused.
+One reason for preferring separate steps is that the importing proof is usually very big, and takes a lot of time. On the other hand, presentation proofs are small. Also, presentations are one-off and designed to be used exactly once, so you really _want_ those proofs to be small. On the other hand, credentials are designed to be stored long-term, so separating them saves a lot of proof generation time if credentials can be reused.
 
 Another reason is that modeling imported credentials as recursive proofs keeps our core library agnostic about the inner verification logic. That way, we avoid the burden of supporting all possible credentials within the library itself. Anyone can write their own "import" circuit, and still be compatible with the standard!
 
@@ -525,7 +525,7 @@ await Credential.validate(recovered);
 
 ### Creating credentials
 
-The `Credentail` namespace provides several methods to help create different types of credentials:
+The `Credential` namespace provides several methods to help create different types of credentials:
 
 #### Native Credential
 
@@ -824,7 +824,7 @@ A presentation specification consists of:
 - Output logic - What data to reveal publicly
   - A `Node` of the generic `Output` type
 
-> The `Node` type respresents an operation or value in a presentation's circuit. It's the foundational type used throughout the Operation DSL. It is a discriminated union type with a `type` field identifying the operation. Nodes are evaluated when creating or verifying a presentation. The `Node.eval` function handles this internally. While you typically don't create Node objects directly, understanding their structure helps when working with the Operation DSL. Each Operation function returns a Node that represents that operation or value in the circuit.
+> The `Node` type represents an operation or value in a presentation's circuit. It's the foundational type used throughout the Operation DSL. It is a discriminated union type with a `type` field identifying the operation. Nodes are evaluated when creating or verifying a presentation. The `Node.eval` function handles this internally. While you typically don't create Node objects directly, understanding their structure helps when working with the Operation DSL. Each Operation function returns a Node that represents that operation or value in the circuit.
 
 #### `Operation`
 
@@ -884,9 +884,9 @@ const Operation = {
 
 - Data access:
 
-  - `Operation.propery(node: Node, key: string)` - Access object propery
-  - `Opeartion.record(data: Record<string, Node>)` - Create record from nodes
-  - `Opeartion.constant(data: T)` - Create constant value
+  - `Operation.property(node: Node, key: string)` - Access object property
+  - `Operation.record(data: Record<string, Node>)` - Create record from nodes
+  - `Operation.constant(data: T)` - Create constant value
 
 - Credential-specific:
 
@@ -1151,9 +1151,9 @@ type ZkAppInputContext = {
 
 #### Context
 
-Request contexts provide security by binding presentations to a specific erifier and action. Each type of request has its own context structure that helps prevent misuse of presentations.
+Request contexts provide security by binding presentations to a specific verifier and action. Each type of request has its own context structure that helps prevent misuse of presentations.
 
-> For testing or special cases, you can create requests without contet binding. Howerver, no-context requests should generally be avoided in production as they lack the security guarantees provided by proper context binding.
+> For testing or special cases, you can create requests without context binding. However, no-context requests should generally be avoided in production as they lack the security guarantees provided by proper context binding.
 
 ##### HTTPS Context
 
@@ -1470,7 +1470,7 @@ async function compile<R extends PresentationRequest>(
 
 The `compile()` function:
 
-- Takes a complete presentation request and compiles its underlying specificatio
+- Takes a complete presentation request and compiles its underlying specification
 - Parameters:
   - `request`: The presentation request to compile
 - Returns:
@@ -1611,7 +1611,7 @@ Returns:
 
 #### Credential matching
 
-When creating a presentation, credentials are passed as an array along with optinal keys:
+When creating a presentation, credentials are passed as an array along with optional keys:
 
 ```ts
 type CredentialInput = StoredCredential & { key?: string };
@@ -1645,7 +1645,7 @@ const presentation = await Presentation.create(ownerKey, {
 });
 ```
 
-2. Automatic Mathing (without keys):
+2. Automatic Matching (without keys):
 
 ```ts
 // Credentials will be matched automatically based on different criteria
@@ -1678,7 +1678,7 @@ const presentation = await Presentation.create(ownerKey, {
 2. Type Matching
 
    - Without keys, credentials are matched based on their type compatibility with the spec
-   - The credential mathces a spec input if it passes `credentialMatchesSpec(spec, credential)`
+   - The credential matches a spec input if it passes `credentialMatchesSpec(spec, credential)`
    - This checks:
      - Credential version matches
      - Witness type matches (native/imported/unsigned)
@@ -1803,7 +1803,7 @@ Returns:
 The verification process includes several key steps:
 
 1. Recomputing the context hash using the request's `inputContext`, provided `context`, and original `claims`
-2. Verifying the proof agains the request's verification key
+2. Verifying the proof against the request's verification key
 3. Checking that the proof's public inputs match the recomputed context and claims
 4. Extracting and returning the verified output claim
 
