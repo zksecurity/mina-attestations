@@ -119,7 +119,7 @@ function createCredentialZkPassPartial(options: { maxMessageLength: number }) {
   const Message = DynamicBytes({ maxLength: maxMessageLength });
   return Credential.Imported.fromMethod(
     {
-      name: `ecdsa-full-${maxMessageLength}`,
+      name: `ecdsa-partial-${maxMessageLength}`,
       publicInput: {
         allocatorAddress: Address,
         allocatorMessage: Message,
