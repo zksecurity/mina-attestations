@@ -324,6 +324,12 @@ async function preparePresentation<R extends PresentationRequest>({
   clientNonce: Field;
   compiledRequest: CompiledRequest<Output<R>, Inputs<R>>;
 }> {
+  // find credentials
+  let { credentialsUsed, credentialsAndSpecs } = pickCredentials(
+    request.spec,
+    credentials
+  );
+
   // compile the program
   let compiled = await Presentation.precompile(
     request.spec as Spec<Output<R>, Inputs<R>>
@@ -338,12 +344,6 @@ async function preparePresentation<R extends PresentationRequest>({
     vkHash: compiled.verificationKey.hash,
     claims: hashClaims(request.claims),
   });
-
-  // find credentials and sign with owner key
-  let { credentialsUsed, credentialsAndSpecs } = pickCredentials(
-    request.spec,
-    credentials
-  );
 
   // TODO do we need this step?
   // credentialsAndSpecs = credentialsAndSpecs.map((credentialAndSpec) => {
