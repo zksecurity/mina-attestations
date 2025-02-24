@@ -7,35 +7,22 @@ import {
 } from '../../../src/index.ts';
 import { ORIGIN, SERVER_ID } from './config.ts';
 import { queuePromise } from './async-queue.ts';
-import { EcdsaEthereum } from '../../../src/imported.ts';
-import { getHashHelper } from '../../../src/imported/ecdsa-credential.ts';
+import { ZkPass } from '../../../src/imported.ts';
 
-export { requestZkPassVerification, verifiyZkPass };
+export { requestZkPassVerification, verifyZkPass };
 
 const ACTION_ID = `${SERVER_ID}:zkpass-verification`;
 
-await queuePromise(() => getHashHelper(128).analyzeMethods());
+await queuePromise(() => ZkPass.compileDependenciesPartial());
+const zkPassCredential = await queuePromise(() => ZkPass.CredentialPartial());
 
-await queuePromise(() =>
-  EcdsaEthereum.compileDependencies({
-    maxMessageLength: 128,
-    proofsEnabled: true,
-  })
-);
-
-const ecdsaCredential = await queuePromise(() =>
-  EcdsaEthereum.CredentialZkPassPartial({
-    maxMessageLength: 128,
-  })
-);
-
-const vk = await queuePromise(() => ecdsaCredential.compile());
+const vk = await queuePromise(() => zkPassCredential.compile());
 
 console.log('vk.hash:', vk.hash.toJSON());
 
 const verificationSpec = Spec(
   {
-    credential: ecdsaCredential.spec,
+    credential: zkPassCredential.spec,
   },
   ({ credential }) => {
     return {
@@ -79,7 +66,7 @@ async function requestZkPassVerification() {
   return PresentationRequest.toJSON(request);
 }
 
-async function verifiyZkPass(presentationJson: string) {
+async function verifyZkPass(presentationJson: string) {
   try {
     let presentation = Presentation.fromJSON(presentationJson);
     let nonce = presentation.serverNonce.toString();

@@ -1,5 +1,4 @@
 import {
-  Bool,
   Bytes,
   createEcdsa,
   createForeignCurve,
@@ -8,7 +7,6 @@ import {
   Experimental,
   Field,
   type From,
-  Gadgets,
   Keccak,
   Provable,
   UInt8,
@@ -56,32 +54,10 @@ const EcdsaEthereum = {
     return cred;
   },
 
-  CredentialZkPassPartial({ maxMessageLength }: { maxMessageLength: number }) {
-    let cred = ecdsaCredentialsZkPassPartial.get(maxMessageLength);
-    cred ??= createCredentialZkPassPartial({ maxMessageLength });
-    ecdsaCredentialsZkPassPartial.set(maxMessageLength, cred);
-    return cred;
-  },
-
-  CredentialZkPassFull({ maxMessageLength }: { maxMessageLength: number }) {
-    let cred = ecdsaCredentialsZkPassFull.get(maxMessageLength);
-    cred ??= createCredentialZkPassFull({ maxMessageLength });
-    ecdsaCredentialsZkPassFull.set(maxMessageLength, cred);
-    return cred;
-  },
-
   compileDependencies,
 };
 
 const ecdsaCredentials = new Map<number, ReturnType<typeof createCredential>>();
-const ecdsaCredentialsZkPassPartial = new Map<
-  number,
-  ReturnType<typeof createCredentialZkPassPartial>
->();
-const ecdsaCredentialsZkPassFull = new Map<
-  number,
-  ReturnType<typeof createCredentialZkPassFull>
->();
 const hashHelpers = new Map<number, ReturnType<typeof createHashHelper>>();
 
 function createCredential(options: { maxMessageLength: number }) {
@@ -110,104 +86,6 @@ function createCredential(options: { maxMessageLength: number }) {
         maxMessageLength
       );
       return { message };
-    }
-  );
-}
-
-function createCredentialZkPassPartial(options: { maxMessageLength: number }) {
-  let { maxMessageLength } = options;
-  const Message = DynamicBytes({ maxLength: maxMessageLength });
-  return Credential.Imported.fromMethod(
-    {
-      name: `ecdsa-partial-${maxMessageLength}`,
-      publicInput: {
-        allocatorAddress: Address,
-        allocatorMessage: Message,
-        allocatorSignature: { r: Gadgets.Field3, s: Gadgets.Field3 },
-        allocatorParityBit: Bool,
-      },
-      privateInput: {
-        validatorMessage: Message,
-        validatorSignature: Signature,
-        validatorParityBit: Unconstrained.withEmpty(false),
-        validatorAddress: Address,
-      },
-      data: { allocatorMessage: Message },
-    },
-    async ({
-      publicInput: { allocatorMessage },
-      privateInput: {
-        validatorMessage,
-        validatorSignature,
-        validatorParityBit,
-        validatorAddress,
-      },
-    }) => {
-      // Verify validator signature
-      await verifyEthereumSignature(
-        validatorMessage,
-        validatorSignature,
-        validatorAddress,
-        validatorParityBit,
-        maxMessageLength
-      );
-
-      return { allocatorMessage };
-    }
-  );
-}
-
-// Verifies both validator and allocator signatures
-// TODO: OOM
-function createCredentialZkPassFull(options: { maxMessageLength: number }) {
-  let { maxMessageLength } = options;
-  const Message = DynamicBytes({ maxLength: maxMessageLength });
-  return Credential.Imported.fromMethod(
-    {
-      name: `ecdsa-full-${maxMessageLength}`,
-      publicInput: { allocatorAddress: Address },
-      privateInput: {
-        allocatorMessage: Message,
-        allocatorSignature: Signature,
-        allocatorParityBit: Unconstrained.withEmpty(false),
-        validatorMessage: Message,
-        validatorSignature: Signature,
-        validatorParityBit: Unconstrained.withEmpty(false),
-        validatorAddress: Address,
-      },
-      data: { allocatorMessage: Message, validatorMessage: Message },
-    },
-    async ({
-      publicInput: { allocatorAddress },
-      privateInput: {
-        allocatorMessage,
-        allocatorSignature,
-        allocatorParityBit,
-        validatorMessage,
-        validatorSignature,
-        validatorParityBit,
-        validatorAddress,
-      },
-    }) => {
-      // Verify allocator signature
-      await verifyEthereumSignature(
-        allocatorMessage,
-        allocatorSignature,
-        allocatorAddress,
-        allocatorParityBit,
-        maxMessageLength
-      );
-
-      // Verify validator signature
-      await verifyEthereumSignature(
-        validatorMessage,
-        validatorSignature,
-        validatorAddress,
-        validatorParityBit,
-        maxMessageLength
-      );
-
-      return { allocatorMessage, validatorMessage };
     }
   );
 }

@@ -2,7 +2,7 @@ import http from 'http';
 import { URL } from 'url';
 import { requestLogin, verifyLogin } from './action-login.ts';
 import { getVotes, requestVote, verifyVote } from './action-voting.ts';
-import { requestZkPassVerification, verifiyZkPass } from './action-zkpass.ts';
+import { requestZkPassVerification, verifyZkPass } from './action-zkpass.ts';
 import { issueCredential } from './issue-credential.ts';
 
 // Helper to read request body
@@ -112,7 +112,7 @@ const server = http.createServer(async (req, res) => {
       let body = await readBody(req);
       console.log('/verify-zkpass', body.slice(0, 1000));
 
-      let result = await verifiyZkPass(body);
+      let result = await verifyZkPass(body);
 
       res.writeHead(200);
       res.end(JSON.stringify(result));

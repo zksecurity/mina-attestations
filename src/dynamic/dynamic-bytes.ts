@@ -7,7 +7,7 @@ import {
 import { ProvableFactory } from '../provable-factory.ts';
 import { assert, chunk, stringLength } from '../util.ts';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
-import { ProvableHashablePure } from '../o1js-missing.ts';
+import type { ProvableHashablePure } from '../o1js-missing.ts';
 
 export { DynamicBytes, DynamicBytesBase };
 

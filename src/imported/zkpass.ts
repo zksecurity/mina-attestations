@@ -3,21 +3,60 @@
  *
  * See `ecdsa-credential.test.ts`
  */
-import { PublicKey } from 'o1js';
-import { DynamicSHA3 } from '../dynamic.ts';
+import { DynamicBytes, DynamicSHA3 } from '../dynamic.ts';
 import { assert, ByteUtils, zip } from '../util.ts';
-import { EcdsaEthereum, parseSignature } from './ecdsa-credential.ts';
+import {
+  EcdsaEthereum,
+  getHashHelper,
+  parseSignature,
+  verifyEthereumSignature,
+} from './ecdsa-credential.ts';
+import { Credential } from '../credential-index.ts';
+import { PublicKey, Bool, Gadgets, Unconstrained } from 'o1js';
 
 export { ZkPass, type ZkPassResponseItem };
 
+const { Signature, Address } = EcdsaEthereum;
+
+const maxMessageLength = 128;
+
 /**
- * Utitilies to help process zkpass responses.
+ * Utilities to help process zkpass responses.
  */
 const ZkPass = {
   importCredentialPartial,
   encodeParameters,
   genPublicFieldHash,
+
+  CredentialPartial() {
+    let cred = ecdsaCredentialsZkPassPartial.get(maxMessageLength);
+    cred ??= createCredentialZkPassPartial({ maxMessageLength });
+    ecdsaCredentialsZkPassPartial.set(maxMessageLength, cred);
+    return cred;
+  },
+
+  CredentialFull() {
+    let cred = ecdsaCredentialsZkPassFull.get(maxMessageLength);
+    cred ??= createCredentialZkPassFull({ maxMessageLength });
+    ecdsaCredentialsZkPassFull.set(maxMessageLength, cred);
+    return cred;
+  },
+
+  async compileDependenciesPartial({ proofsEnabled = true } = {}) {
+    await getHashHelper(maxMessageLength).compile({ proofsEnabled });
+    let cred = await ZkPass.CredentialPartial();
+    await cred.compile({ proofsEnabled });
+  },
 };
+
+const ecdsaCredentialsZkPassPartial = new Map<
+  number,
+  ReturnType<typeof createCredentialZkPassPartial>
+>();
+const ecdsaCredentialsZkPassFull = new Map<
+  number,
+  ReturnType<typeof createCredentialZkPassFull>
+>();
 
 type Type = 'bytes32' | 'address';
 
@@ -83,12 +122,10 @@ async function importCredentialPartial(
   log('Compiling ZkPass credential...');
   await EcdsaEthereum.compileDependencies({ maxMessageLength });
 
-  let EcdsaCredentialPartial = await EcdsaEthereum.CredentialZkPassPartial({
-    maxMessageLength,
-  });
+  let ZkPassCredential = await ZkPass.CredentialPartial();
 
   log('Creating ZkPass credential...');
-  let credential = await EcdsaCredentialPartial.create({
+  let credential = await ZkPassCredential.create({
     owner,
     publicInput: {
       allocatorMessage,
@@ -105,6 +142,49 @@ async function importCredentialPartial(
   });
 
   return credential;
+}
+
+function createCredentialZkPassPartial(options: { maxMessageLength: number }) {
+  let { maxMessageLength } = options;
+  const Message = DynamicBytes({ maxLength: maxMessageLength });
+  return Credential.Imported.fromMethod(
+    {
+      name: `ecdsa-partial-${maxMessageLength}`,
+      publicInput: {
+        allocatorAddress: Address,
+        allocatorMessage: Message,
+        allocatorSignature: { r: Gadgets.Field3, s: Gadgets.Field3 },
+        allocatorParityBit: Bool,
+      },
+      privateInput: {
+        validatorMessage: Message,
+        validatorSignature: Signature,
+        validatorParityBit: Unconstrained.withEmpty(false),
+        validatorAddress: Address,
+      },
+      data: { allocatorMessage: Message },
+    },
+    async ({
+      publicInput: { allocatorMessage },
+      privateInput: {
+        validatorMessage,
+        validatorSignature,
+        validatorParityBit,
+        validatorAddress,
+      },
+    }) => {
+      // Verify validator signature
+      await verifyEthereumSignature(
+        validatorMessage,
+        validatorSignature,
+        validatorAddress,
+        validatorParityBit,
+        maxMessageLength
+      );
+
+      return { allocatorMessage };
+    }
+  );
 }
 
 // New version - verifies both validator and allocator signatures
@@ -156,12 +236,10 @@ async function importCredentialFull(
   log('Compiling ZkPass full credential...');
   await EcdsaEthereum.compileDependencies({ maxMessageLength });
 
-  let EcdsaCredentialFull = await EcdsaEthereum.CredentialZkPassFull({
-    maxMessageLength,
-  });
+  let ZkPassCredential = await ZkPass.CredentialFull();
 
   log('Creating ZkPass full credential...');
-  let credential = await EcdsaCredentialFull.create({
+  let credential = await ZkPassCredential.create({
     owner,
     publicInput: {
       allocatorAddress: EcdsaEthereum.Address.from(allocatorAddress),
@@ -178,6 +256,61 @@ async function importCredentialFull(
   });
 
   return credential;
+}
+
+// Verifies both validator and allocator signatures
+// TODO: OOM
+function createCredentialZkPassFull(options: { maxMessageLength: number }) {
+  let { maxMessageLength } = options;
+  const Message = DynamicBytes({ maxLength: maxMessageLength });
+  return Credential.Imported.fromMethod(
+    {
+      name: `ecdsa-full-${maxMessageLength}`,
+      publicInput: { allocatorAddress: Address },
+      privateInput: {
+        allocatorMessage: Message,
+        allocatorSignature: Signature,
+        allocatorParityBit: Unconstrained.withEmpty(false),
+        validatorMessage: Message,
+        validatorSignature: Signature,
+        validatorParityBit: Unconstrained.withEmpty(false),
+        validatorAddress: Address,
+      },
+      data: { allocatorMessage: Message, validatorMessage: Message },
+    },
+    async ({
+      publicInput: { allocatorAddress },
+      privateInput: {
+        allocatorMessage,
+        allocatorSignature,
+        allocatorParityBit,
+        validatorMessage,
+        validatorSignature,
+        validatorParityBit,
+        validatorAddress,
+      },
+    }) => {
+      // Verify allocator signature
+      await verifyEthereumSignature(
+        allocatorMessage,
+        allocatorSignature,
+        allocatorAddress,
+        allocatorParityBit,
+        maxMessageLength
+      );
+
+      // Verify validator signature
+      await verifyEthereumSignature(
+        validatorMessage,
+        validatorSignature,
+        validatorAddress,
+        validatorParityBit,
+        maxMessageLength
+      );
+
+      return { allocatorMessage, validatorMessage };
+    }
+  );
 }
 
 function encodeParameters(types: Type[], values: Uint8Array[]) {
