@@ -1,7 +1,4 @@
-import { assert, ByteUtils } from '../../util.ts';
-import { EcdsaEthereum, parseSignature } from '../ecdsa-credential.ts';
 import { owner } from '../../../tests/test-utils.ts';
-import { PublicKey } from 'o1js';
 import { ZkPass, type ZkPassResponseItem } from '../zkpass.ts';
 import { Credential } from '../../credential-index.ts';
 
@@ -35,81 +32,23 @@ const response: ZkPassResponseItem = {
     '0x99d61fa8f8413a3eaa38d2c064119c67592c696a0b8c2c2eb4a9b2e4ef122de3674e68203d0388d238635e36237f41279a406512515f6a26b0b38479d5c6eade1b',
 };
 
-let publicFieldsHash = ZkPass.genPublicFieldHash(
-  response.publicFields
-).toBytes();
-
-// validate public fields hash
-assert('0x' + ByteUtils.toHex(publicFieldsHash) === response.publicFieldsHash);
-
-// compute allocator message hash
-let allocatorMessage = ZkPass.encodeParameters(
-  ['bytes32', 'bytes32', 'address'],
-  [
-    ByteUtils.fromString(response.taskId),
-    ByteUtils.fromString(schema),
-    ByteUtils.fromHex(response.validatorAddress),
-  ]
-);
-
-// compute validator message hash
-let validatorMessage = ZkPass.encodeParameters(
-  ['bytes32', 'bytes32', 'bytes32', 'bytes32'],
-  [
-    ByteUtils.fromString(response.taskId),
-    ByteUtils.fromString(schema),
-    ByteUtils.fromHex(response.uHash),
-    publicFieldsHash,
-  ]
-);
-
-let { signature: validatorSignature, parityBit: validatorParityBit } =
-  parseSignature(response.validatorSignature);
-let validatorAddress = ByteUtils.fromHex(response.validatorAddress);
-let { signature: allocatorSignature, parityBit: allocatorParityBit } =
-  parseSignature(response.allocatorSignature);
-let allocatorAddress = ByteUtils.fromHex(response.allocatorAddress);
-
-console.time('zkpass constraints (recursive)');
-let csRec = (await ZkPassCredentialPartial.program.analyzeMethods()).run;
-console.log(csRec.summary());
-console.timeEnd('zkpass constraints (recursive)');
-
-console.time('zkpass prove');
-let credential = await ZkPassCredentialPartial.create({
-  owner,
-  publicInput: {
-    allocatorMessage,
-    allocatorSignature,
-    allocatorParityBit,
-    allocatorAddress: EcdsaEthereum.Address.from(allocatorAddress),
-  },
-  privateInput: {
-    validatorMessage,
-    validatorSignature,
-    validatorParityBit,
-    validatorAddress: EcdsaEthereum.Address.from(validatorAddress),
-  },
-});
-console.timeEnd('zkpass prove');
-
-console.log(
-  'zkpasstest::credential.witness.vk.hash:',
-  credential.witness.vk.hash.toJSON()
-);
-
-let json = Credential.toJSON(credential);
-let recovered = await Credential.fromJSON(json);
-await Credential.validate(recovered);
+console.time('zkpass constraints (partial)');
+let cs = (await ZkPassCredentialPartial.program.analyzeMethods()).run;
+console.log(cs.summary());
+console.timeEnd('zkpass constraints (partial)');
 
 /******************************************/
-const cred = await ZkPass.importCredentialPartial(
-  PublicKey.fromBase58(
-    'B62qmb5sdmFDTDi63wHk2S4GLu5tN2Rofrjp9HwdPPNGUgUGv21GEUi'
-  ),
+let cred = await ZkPass.importCredentialPartial(
+  owner,
   schema,
-  response
+  response,
+  console.log
 );
 
+let json = Credential.toJSON(cred);
+let recovered = await Credential.fromJSON(json);
+await Credential.validate(recovered);
 console.log('zkpasstest::cred.witness.vk.hash:', cred.witness.vk.hash.toJSON());
 console.log('zkpasstest::Credential.toJSON(cred):', Credential.toJSON(cred));
+
+ZkPass.verifyPublicInput(cred.witness.proof.publicInput);

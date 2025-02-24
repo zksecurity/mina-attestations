@@ -4,15 +4,16 @@
  * See `ecdsa-credential.test.ts`
  */
 import { DynamicBytes, DynamicSHA3 } from '../dynamic.ts';
-import { assert, ByteUtils, zip } from '../util.ts';
+import { assert, ByteUtils, fill, zip } from '../util.ts';
 import {
   EcdsaEthereum,
   getHashHelper,
   parseSignature,
   verifyEthereumSignature,
+  verifyEthereumSignatureSimple,
 } from './ecdsa-credential.ts';
 import { Credential } from '../credential-index.ts';
-import { PublicKey, Bool, Gadgets, Unconstrained } from 'o1js';
+import { PublicKey, Bool, Gadgets, Unconstrained, Bytes, Field } from 'o1js';
 
 export { ZkPass, type ZkPassResponseItem };
 
@@ -20,27 +21,24 @@ const { Signature, Address } = EcdsaEthereum;
 
 const maxMessageLength = 128;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
+const Bytes32 = Bytes(32);
 
 /**
  * Utilities to help process zkpass responses.
  */
 const ZkPass = {
   importCredentialPartial,
+  verifyPublicInput,
+
   encodeParameters,
   genPublicFieldHash,
 
   CredentialPartial() {
-    let cred = ecdsaCredentialsZkPassPartial.get(maxMessageLength);
-    cred ??= createCredentialZkPassPartial();
-    ecdsaCredentialsZkPassPartial.set(maxMessageLength, cred);
-    return cred;
+    return (partialCredential ??= createCredentialZkPassPartial());
   },
 
   CredentialFull() {
-    let cred = ecdsaCredentialsZkPassFull.get(maxMessageLength);
-    cred ??= createCredentialZkPassFull();
-    ecdsaCredentialsZkPassFull.set(maxMessageLength, cred);
-    return cred;
+    return (fullCredential ??= createCredentialZkPassFull());
   },
 
   async compileDependenciesPartial({ proofsEnabled = true } = {}) {
@@ -48,16 +46,18 @@ const ZkPass = {
     let cred = await ZkPass.CredentialPartial();
     await cred.compile({ proofsEnabled });
   },
+
+  async compileDependenciesFull({ proofsEnabled = true } = {}) {
+    await getHashHelper(maxMessageLength).compile({ proofsEnabled });
+    let cred = await ZkPass.CredentialFull();
+    await cred.compile({ proofsEnabled });
+  },
 };
 
-const ecdsaCredentialsZkPassPartial = new Map<
-  number,
-  ReturnType<typeof createCredentialZkPassPartial>
->();
-const ecdsaCredentialsZkPassFull = new Map<
-  number,
-  ReturnType<typeof createCredentialZkPassFull>
->();
+let partialCredential:
+  | ReturnType<typeof createCredentialZkPassPartial>
+  | undefined;
+let fullCredential: ReturnType<typeof createCredentialZkPassFull> | undefined;
 
 type Type = 'bytes32' | 'address';
 
@@ -80,35 +80,22 @@ async function importCredentialPartial(
   response: ZkPassResponseItem,
   log: (msg: string) => void = () => {}
 ) {
-  let publicFieldsHash = ZkPass.genPublicFieldHash(
+  // validate public fields hash
+  let recoveredPublicFieldsHash = ZkPass.genPublicFieldHash(
     response.publicFields
   ).toBytes();
-
-  // validate public fields hash
   assert(
-    '0x' + ByteUtils.toHex(publicFieldsHash) === response.publicFieldsHash
+    '0x' + ByteUtils.toHex(recoveredPublicFieldsHash) ===
+      response.publicFieldsHash
   );
 
-  // compute validator message hash
-  let validatorMessage = ZkPass.encodeParameters(
-    ['bytes32', 'bytes32', 'bytes32', 'bytes32'],
-    [
-      ByteUtils.fromString(response.taskId),
-      ByteUtils.fromString(schema),
-      ByteUtils.fromHex(response.uHash),
-      publicFieldsHash,
-    ]
+  let schemaBytes = encodeParameter('bytes32', ByteUtils.fromString(schema));
+  let taskId = encodeParameter(
+    'bytes32',
+    ByteUtils.fromString(response.taskId)
   );
-
-  // compute allocator message hash
-  let allocatorMessage = ZkPass.encodeParameters(
-    ['bytes32', 'bytes32', 'address'],
-    [
-      ByteUtils.fromString(response.taskId),
-      ByteUtils.fromString(schema),
-      ByteUtils.fromHex(response.validatorAddress),
-    ]
-  );
+  let uHash = encodeParameter('bytes32', ByteUtils.fromHex(response.uHash));
+  let publicFieldsHash = encodeParameter('bytes32', recoveredPublicFieldsHash);
 
   let { signature: validatorSignature, parityBit: validatorParityBit } =
     parseSignature(response.validatorSignature);
@@ -127,49 +114,92 @@ async function importCredentialPartial(
   let credential = await ZkPassCredential.create({
     owner,
     publicInput: {
-      allocatorMessage,
+      schema: Bytes32.from(schemaBytes),
+      taskId: Bytes32.from(taskId),
+      allocatorAddress: Address.from(allocatorAddress),
+      validatorAddress: Address.from(validatorAddress),
       allocatorSignature,
       allocatorParityBit,
-      allocatorAddress: EcdsaEthereum.Address.from(allocatorAddress),
     },
     privateInput: {
-      validatorMessage,
+      publicFieldsHash: Bytes32.from(publicFieldsHash),
+      uHash: Bytes32.from(uHash),
       validatorSignature,
       validatorParityBit,
-      validatorAddress: EcdsaEthereum.Address.from(validatorAddress),
     },
   });
 
   return credential;
 }
 
+type Field3 = [Field, Field, Field];
+
+/**
+ * Verify the public input of a partial zkpass credential.
+ *
+ * This is a verification step that can be done in the clear, and is
+ * outsourced from the proof to the verifier.
+ */
+function verifyPublicInput(publicInput: {
+  schema: Bytes;
+  taskId: Bytes;
+  validatorAddress: Bytes;
+  allocatorAddress: Bytes;
+  allocatorSignature: { r: Field3; s: Field3 };
+  allocatorParityBit: Bool;
+}) {
+  let allocatorMessage = DynamicBytes.from([
+    ...publicInput.taskId.bytes,
+    ...publicInput.schema.bytes,
+    ...fill(12, 0), // 12 zero bytes to fill up address
+    ...publicInput.validatorAddress.bytes,
+  ]);
+
+  verifyEthereumSignatureSimple(
+    allocatorMessage,
+    Signature.from(publicInput.allocatorSignature),
+    publicInput.allocatorAddress,
+    Unconstrained.from(publicInput.allocatorParityBit.toBoolean())
+  );
+}
+
 function createCredentialZkPassPartial() {
   return Credential.Imported.fromMethod(
     {
-      name: `ecdsa-partial-${maxMessageLength}`,
+      name: `zkpass-partial-${maxMessageLength}`,
       publicInput: {
+        schema: Bytes32,
+        taskId: Bytes32,
+        validatorAddress: Address,
         allocatorAddress: Address,
-        allocatorMessage: Message,
         allocatorSignature: { r: Gadgets.Field3, s: Gadgets.Field3 },
         allocatorParityBit: Bool,
       },
       privateInput: {
-        validatorMessage: Message,
+        uHash: Bytes32,
+        publicFieldsHash: Bytes32,
         validatorSignature: Signature,
         validatorParityBit: Unconstrained.withEmpty(false),
-        validatorAddress: Address,
       },
-      data: { allocatorMessage: Message },
+      data: { validatorMessage: Message },
     },
     async ({
-      publicInput: { allocatorMessage },
+      publicInput: { schema, taskId, validatorAddress },
       privateInput: {
-        validatorMessage,
+        uHash,
+        publicFieldsHash,
         validatorSignature,
         validatorParityBit,
-        validatorAddress,
       },
     }) => {
+      // combine validator message
+      let validatorMessage = DynamicBytes.from([
+        ...taskId.bytes,
+        ...schema.bytes,
+        ...uHash.bytes,
+        ...publicFieldsHash.bytes,
+      ]);
+
       // Verify validator signature
       await verifyEthereumSignature(
         validatorMessage,
@@ -179,7 +209,7 @@ function createCredentialZkPassPartial() {
         maxMessageLength
       );
 
-      return { allocatorMessage };
+      return { validatorMessage };
     }
   );
 }
@@ -228,11 +258,8 @@ async function importCredentialFull(
   let allocatorAddress = ByteUtils.fromHex(response.allocatorAddress);
   let validatorAddress = ByteUtils.fromHex(response.validatorAddress);
 
-  const maxMessageLength = 128;
-
   log('Compiling ZkPass full credential...');
-  await EcdsaEthereum.compileDependencies({ maxMessageLength });
-
+  await ZkPass.compileDependenciesFull();
   let ZkPassCredential = await ZkPass.CredentialFull();
 
   log('Creating ZkPass full credential...');
@@ -260,7 +287,7 @@ async function importCredentialFull(
 function createCredentialZkPassFull() {
   return Credential.Imported.fromMethod(
     {
-      name: `ecdsa-full-${maxMessageLength}`,
+      name: `zkpass-full-${maxMessageLength}`,
       publicInput: { allocatorAddress: Address },
       privateInput: {
         allocatorMessage: Message,
@@ -309,12 +336,16 @@ function createCredentialZkPassFull() {
 }
 
 function encodeParameters(types: Type[], values: Uint8Array[]) {
-  let arrays = zip(types, values).map(([type, value]) => {
-    if (type === 'bytes32') return ByteUtils.padEnd(value, 32, 0);
-    if (type === 'address') return ByteUtils.padStart(value, 32, 0);
-    throw Error('unexpected type');
-  });
+  let arrays = zip(types, values).map(([type, value]) =>
+    encodeParameter(type, value)
+  );
   return ByteUtils.concat(...arrays);
+}
+
+function encodeParameter(type: Type, value: Uint8Array) {
+  if (type === 'bytes32') return ByteUtils.padEnd(value, 32, 0);
+  if (type === 'address') return ByteUtils.padStart(value, 32, 0);
+  throw Error('unexpected type');
 }
 
 // hash used by zkpass to commit to public fields
