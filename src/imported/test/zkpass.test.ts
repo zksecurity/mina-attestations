@@ -10,11 +10,6 @@ console.time('zkpass create credential');
 const ZkPassCredentialPartial = await ZkPass.CredentialPartial();
 console.timeEnd('zkpass create credential');
 
-console.time('zkpass compile');
-let vk = await ZkPassCredentialPartial.compile();
-console.timeEnd('zkpass compile');
-console.log('vk.hash:', vk.hash.toJSON());
-
 // create zkpass cred from zkpass data
 const schema = 'c7eab8b7d7e44b05b41b613fe548edf5';
 
@@ -37,7 +32,6 @@ let cs = (await ZkPassCredentialPartial.program.analyzeMethods()).run;
 console.log(cs.summary());
 console.timeEnd('zkpass constraints (partial)');
 
-/******************************************/
 let cred = await ZkPass.importCredentialPartial(
   owner,
   schema,
@@ -49,6 +43,5 @@ let json = Credential.toJSON(cred);
 let recovered = await Credential.fromJSON(json);
 await Credential.validate(recovered);
 console.log('zkpasstest::cred.witness.vk.hash:', cred.witness.vk.hash.toJSON());
-console.log('zkpasstest::Credential.toJSON(cred):', Credential.toJSON(cred));
 
 ZkPass.verifyPublicInput(cred.witness.proof.publicInput);
