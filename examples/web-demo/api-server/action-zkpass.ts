@@ -77,6 +77,7 @@ async function verifyZkPass(presentationJson: string) {
       verifierIdentity: ORIGIN,
     });
 
+    // Check allocator address
     const allocatorAddress =
       '19a567b3b212a5b35bA0E3B600FbEd5c2eE9083d'.toLowerCase();
     // Validator address can change based on who's selected by the allocator
@@ -84,7 +85,8 @@ async function verifyZkPass(presentationJson: string) {
 
     assert(allocatorAddress === output.allocatorAddress.toHex());
 
-    // TODO: check allocator signature
+    // check allocator signature
+    ZkPass.verifyPublicInput(output);
 
     openRequests.delete(nonce);
   } catch (error: any) {
