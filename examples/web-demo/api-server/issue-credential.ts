@@ -1,5 +1,5 @@
 import { CredentialData, schema } from './schema.ts';
-import { Bytes, PublicKey } from 'o1js';
+import { Bytes, Int64, PublicKey } from 'o1js';
 import { Credential } from '../../../src/index.ts';
 import { getPrivateKey } from './keys.ts';
 import { CREDENTIAL_EXPIRY } from './config.ts';
@@ -22,7 +22,13 @@ function issueCredential(userString: string) {
 
   let credential = {
     owner: PublicKey.fromBase58(owner),
-    data: schema.from({ name, nationality, birthDate, id, expiresAt }),
+    data: schema.from({
+      name,
+      nationality,
+      birthDate: Int64.from(birthDate),
+      id,
+      expiresAt,
+    }),
   };
 
   let signed = Credential.sign(getPrivateKey(), credential);

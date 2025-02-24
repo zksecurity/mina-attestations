@@ -26,7 +26,7 @@ function randomPublicKey() {
 function createOwnerSignature<Witness, Data>(
   context: Field,
   ...credentials: [
-    CredentialSpec<any, Witness, Data>,
+    CredentialSpec<Witness, Data>,
     { credential: Credential<Data>; witness: Witness }
   ][]
 ) {

@@ -31,7 +31,6 @@ zkPassport is based
 
 ## [World ID and Semaphore](https://worldcoin.org/blog/worldcoin/intro-zero-knowledge-proofs-semaphore-application-world-id)
 
-
 The goal of Mina credentials is broader than these systems and must enable
 the implementation of these systems within the Mina ecosystem.
 
@@ -143,3 +142,85 @@ is outweighed by the following benefits:
   the first scheme requires [(weak) simulation extractability](https://eprint.iacr.org/2020/1306.pdf) since the "context".
 
 We obtain a design in which the SNARK serves only to hide the
+
+# Attestation Protocol
+
+## Assumptions
+
+We assume that the Kimchi (the underlying proof) is a Zero-Knowledge Argument of Knowledge:
+
+- **Zero-Knowledge:** Kimchi is (perfect) Zero-Knowledge.
+- **Proof-of-Knowledge:** Kimchi is extractable (in the random oracle model).
+
+We do not assume simulation extractability ("non-malleability") of Kimchi,
+although Kimchi is likely to satisfy this stronger property. \
+Our construction does not assume non-malleability of the zkSNARK and
+hence security is retained even if the zkSNARK was replaced with a malleable proof system (such as Groth16).
+
+## Formal Security Goals
+
+We prove that the construction detailed in this RFC satisfy the following security properties:
+
+> **Privacy: Simulation.**
+>
+> **Informally:** The adversary should not be able to
+>
+> Formally, we define this as the ability to simulate a presentation
+> A
+
+> **Unforgeability: Simulation Extractability.**
+>
+> **Informally:** The adversary should not be able to present a credential to the verifier without having a valid credential.
+>
+> Formally, we define this as the ability to extract a witness (e.g. a valid signature by the issuer) from a presentation:
+>
+> Adv()
+
+This condition holds even when _the adversary has access to an oracle_ that can generate valid presentation proofs for arbitrary statements.
+
+This serves to formalize that the adversary is unable to create valid presentations even if it has access to other valid presentations,
+or is able to execute a "man-in-the-middle" attack on the credential presentation:
+forwarding a clients proof as if it was its own.
+
+## Further Security Considerations
+
+The following consideration is formally covered by unforgeability, but should be considered by applications interacting with this RFC:
+
+**Context Binding:** It is rarely intresting to present a credential without binding the presentation to some additional data.\
+For instance, the presentation of a credential may allow spending from an account,
+in such a scenario the presentation should be bound to the transaction: the recipient, the amount, etc. to prevent the transaction from being mauled.
+This specification details how to bind _arbitrary data_ to the presentation,
+it is beyond the scope of this specification to detail how such data should be derived:
+applications are expected to ensure that context bound to the presentation is sufficient to meet application-specific security requirements.
+
+**Hardware Wallets:** Every credential has an `owner` field, a Mina public key, and the credential can only be used by signing with the corresponding private key. \
+This enables hardware-wallet support for credentials:
+the hardware wallet the context in which the credential is used, but does not need to compute the costly proof.
+In the case of a compromised prover (browser), the attacker learns the attributes of the credential,
+but is unable to use the credential to sign transactions or otherwise impersonate the credential owner.
+
+**Compromised Credentials:** We use the flexibility afforded by the Kimchi proof
+system to reduce the practical impact of a compromised credential.
+
+## Protocols
+
+### Credential Types
+
+At a high level, a credential is a collection of _attributes_ along a proof and corresponding verification procedure:
+checking the validity of the credential.
+
+#### Native Credentials
+
+A native credential is simply a native Mina signature on the set of attributes.
+This type of credential is supported to allow Mina-native application to have very efficient credentials.
+
+#### Imported Credentials
+
+An imported credential is a Kimchi proof taking the set of attributes as public input.
+This type of credential is supported to accomodate any possible credential
+and the ability to integrate existing credential systems (such as ePassport) into the Mina ecosystem
+in a modular way.
+
+- ECDSA signatures over foreign fields on JSON document (e.g. JSON Web Tokens),
+- RSA signatures.
+- Merkle tree inclusion/exclusion proofs.

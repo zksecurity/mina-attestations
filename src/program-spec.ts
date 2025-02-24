@@ -5,18 +5,19 @@ import {
   PublicKey,
   type InferProvable,
   Provable,
+  type From,
 } from 'o1js';
 import type { ExcludeFromRecord } from './types.ts';
 import { ProvableType } from './o1js-missing.ts';
 import { assert } from './util.ts';
 import {
+  inferNestedProvable,
   type InferNestedProvable,
   NestedProvable,
   type NestedProvableFor,
 } from './nested.ts';
 import {
   type CredentialSpec,
-  type CredentialType,
   type Credential,
   type CredentialInputs,
   withOwner,
@@ -34,7 +35,7 @@ export type {
   PublicInputs,
   PrivateInputs,
   UserInputs,
-  DataInputs,
+  RootValue,
   ToCredential,
   Input,
   Claims,
@@ -49,15 +50,17 @@ export {
   privateInputTypes,
   splitUserInputs,
   extractCredentialInputs,
-  recombineDataInputs,
+  rootValue,
+  isCredentialSpec,
 };
 
 type Spec<
-  Output = any,
+  Output = unknown,
   Inputs extends Record<string, Input> = Record<string, Input>
 > = {
   inputs: Inputs;
-  logic: OutputNode<Output>;
+  assert: Node<Bool>;
+  outputClaim: Node<Output>;
 };
 
 /**
@@ -103,7 +106,7 @@ function Spec<Output, Inputs extends Record<string, Input>>(
   );
 
   for (let key in inputs) {
-    if (inputs[key]?.type === 'credential') {
+    if (isCredentialSpec(inputs[key])) {
       let credentialType = inputs[key].credentialType;
       let node: CredentialNode = {
         type: 'credential',
@@ -122,7 +125,7 @@ function Spec<Output, Inputs extends Record<string, Input>>(
   let outputClaim: Node<Output> =
     logic.outputClaim ?? (Operation.constant(undefined) as any);
 
-  return { inputs, logic: { assert: assertNode, outputClaim } };
+  return { inputs, assert: assertNode, outputClaim };
 }
 
 type Constant<Data> = {
@@ -133,33 +136,38 @@ type Constant<Data> = {
 type Claim<Data> = { type: 'claim'; data: NestedProvableFor<Data> };
 
 type Input<Data = any> =
-  | CredentialSpec<CredentialType, any, Data>
+  | (CredentialSpec<any, Data> & { type?: undefined })
   | Constant<Data>
   | Claim<Data>;
 
-type OutputNode<Data> = {
-  assert: Node<Bool>;
-  outputClaim: Node<Data>;
-};
+function isCredentialSpec(input: Input | undefined): input is CredentialSpec {
+  return (
+    input !== undefined && input.type !== 'claim' && input.type !== 'constant'
+  );
+}
 
 function Constant<DataType extends ProvableType>(
   data: DataType,
-  value: InferProvable<DataType>
+  value: From<DataType>
 ): Constant<InferProvable<DataType>> {
-  return { type: 'constant', data, value };
+  return {
+    type: 'constant',
+    data,
+    value: ProvableType.get(data).fromValue(value),
+  };
 }
 
 function Claim<DataType extends NestedProvable>(
   data: DataType
 ): Claim<InferNestedProvable<DataType>> {
-  return { type: 'claim', data: data as any };
+  return { type: 'claim', data: inferNestedProvable(data) };
 }
 
 // helpers to extract/recombine portions of the spec inputs
 
 function publicInputTypes({ inputs }: Spec): NestedProvableFor<{
   context: Field;
-  claims: Record<string, any>;
+  claims: Record<string, unknown>;
 }> {
   let claims: Record<string, NestedProvable> = {};
 
@@ -172,8 +180,8 @@ function publicInputTypes({ inputs }: Spec): NestedProvableFor<{
 }
 
 type CredentialInputType = {
-  credential: { owner: PublicKey; data: any };
-  witness: any;
+  credential: { owner: PublicKey; data: unknown };
+  witness: unknown;
 };
 
 function privateInputTypes({ inputs }: Spec): NestedProvableFor<{
@@ -183,19 +191,19 @@ function privateInputTypes({ inputs }: Spec): NestedProvableFor<{
   let credentials: Record<string, NestedProvableFor<CredentialInputType>> = {};
 
   Object.entries(inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       credentials[key] = {
         credential: withOwner(input.data),
-        witness: input.witness,
+        witness: input.witnessType(input.witness),
       };
     }
   });
   return { ownerSignature: Signature, credentials };
 }
 
-function publicOutputType(spec: Spec): Provable<any> {
+function publicOutputType(spec: Spec): Provable<unknown> {
   let root = rootType(spec);
-  let outputTypeNested = Node.evalType(root, spec.logic.outputClaim);
+  let outputTypeNested = Node.evalType(root, spec.outputClaim);
   return NestedProvable.get(outputTypeNested);
 }
 
@@ -204,7 +212,7 @@ type RootType = Record<string, NestedProvable | CredentialSpec>;
 function rootType({ inputs }: Spec): RootType {
   let result: Record<string, NestedProvable | CredentialSpec> = {};
   Object.entries(inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       result[key] = input;
     } else {
       result[key] = input.data;
@@ -239,7 +247,7 @@ function extractCredentialInputs(
   let credentialInputs: CredentialInputs['credentials'] = [];
 
   Object.entries(spec.inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       let value: any = credentials[key];
       credentialInputs.push({
         spec: input,
@@ -252,13 +260,13 @@ function extractCredentialInputs(
   return { context, ownerSignature, credentials: credentialInputs };
 }
 
-function recombineDataInputs<S extends Spec>(
+function rootValue<S extends Spec>(
   spec: S,
   publicInputs: PublicInputs<any>,
   privateInputs: PrivateInputs<any>,
   credentialOutputs: CredentialOutputs
-): DataInputs<S['inputs']>;
-function recombineDataInputs<S extends Spec>(
+): RootValue<S['inputs']>;
+function rootValue<S extends Spec>(
   spec: S,
   { claims }: PublicInputs<any>,
   _: PrivateInputs<any>,
@@ -269,7 +277,7 @@ function recombineDataInputs<S extends Spec>(
   let i = 0;
 
   Object.entries(spec.inputs).forEach(([key, input]) => {
-    if (input.type === 'credential') {
+    if (isCredentialSpec(input)) {
       result[key] = credentialOutputs.credentials[i];
       i++;
     }
@@ -311,10 +319,8 @@ type UserInputs<Inputs extends Record<string, Input>> = {
   credentials: ExcludeFromRecord<MapToCredentials<Inputs>, never>;
 };
 
-type DataInputs<Inputs extends Record<string, Input>> = ExcludeFromRecord<
-  MapToDataInput<Inputs>,
-  never
->;
+type RootValue<Inputs extends Record<string, Input> = Record<string, Input>> =
+  ExcludeFromRecord<MapToDataInput<Inputs>, never> & { owner: PublicKey };
 
 type MapToClaims<T extends Record<string, Input>> = {
   [K in keyof T]: ToClaim<T[K]>;
@@ -331,7 +337,6 @@ type MapToDataInput<T extends Record<string, Input>> = {
 type ToClaim<T extends Input> = T extends Claim<infer Data> ? Data : never;
 
 type ToCredential<T extends Input> = T extends CredentialSpec<
-  CredentialType,
   infer Witness,
   infer Data
 >
@@ -339,11 +344,10 @@ type ToCredential<T extends Input> = T extends CredentialSpec<
   : never;
 
 type ToDataInput<T extends Input> = T extends CredentialSpec<
-  CredentialType,
   infer Witness,
   infer Data
 >
-  ? { credential: Credential<Data>; witness: Witness; issuer: Field }
+  ? { data: Data; witness: Witness; issuer: Field }
   : T extends Input<infer Data>
   ? Data
   : never;

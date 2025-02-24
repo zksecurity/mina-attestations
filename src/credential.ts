@@ -3,33 +3,32 @@ import {
   Signature,
   Undefined,
   Field,
-  Hashed,
   PrivateKey,
   Group,
   Poseidon,
 } from 'o1js';
 import {
+  inferNestedProvable,
   type InferNestedProvable,
   NestedProvable,
   type NestedProvableFor,
 } from './nested.ts';
 import { zip } from './util.ts';
 import { hashDynamic, provableTypeMatches } from './dynamic/dynamic-hash.ts';
-import { Schema } from './dynamic/schema.ts';
+import type { JSONValue } from './types.ts';
+import type { ImportedWitnessSpec } from './credential-imported.ts';
 
 export {
   type Credential,
   type CredentialSpec,
+  type WitnessSpec,
   type CredentialType,
   type CredentialInputs,
   type CredentialOutputs,
-  credentialHash,
   hashCredential,
-  hashCredentialInCircuit,
   verifyCredentials,
   signCredentials,
   type StoredCredential,
-  defineCredential,
   withOwner,
   Unsigned,
   unsafeMissingOwner,
@@ -40,7 +39,7 @@ export {
 /**
  * A credential is a generic piece of data (the "attributes") along with an owner represented by a public key.
  */
-type Credential<Data> = { owner: PublicKey; data: Data };
+type Credential<Data = unknown> = { owner: PublicKey; data: Data };
 
 /**
  * The different types of credential we currently support.
@@ -53,63 +52,43 @@ type CredentialType = 'unsigned' | 'native' | 'imported';
  * - a "witness" type for private parameters
  * - a type for data (which is left generic when defining credential types)
  * - a function `verify(...)` that verifies the credential inside a ZkProgram circuit
- * - a function `verifyOutsideCircuit(...)` that verifies the credential in normal JS
+ * - a function `validate(...)` that verifies the credential in normal JS
  * - a function `issuer(...)` that derives a commitment to the "issuer" of the credential, e.g. a public key for signed credentials
  * - a function `matchesSpec(...)` that decides whether a stored credential's witness matches the spec
  */
-type CredentialSpec<
-  Type extends CredentialType = CredentialType,
-  Witness = any,
-  Data = any
-> = {
-  type: 'credential';
-  credentialType: Type;
-  witness: NestedProvableFor<Witness>;
+type CredentialSpec<Witness = unknown, Data = unknown> = {
+  credentialType: CredentialType;
   data: NestedProvableFor<Data>;
+  witness: WitnessSpec;
 
-  verify(witness: Witness, credHash: Hashed<Credential<Data>>): void;
+  witnessType(type: WitnessSpec): NestedProvableFor<Witness>;
 
-  verifyOutsideCircuit(
-    witness: Witness,
-    credHash: Hashed<Credential<Data>>
-  ): Promise<void>;
-
+  verify(witness: Witness, credHash: Field): void;
   issuer(witness: Witness): Field;
+  validate(witness: Witness, credHash: Field): Promise<void>;
 
   matchesSpec(witness: Witness): boolean;
 };
 
+type WitnessSpec = ImportedWitnessSpec | undefined;
+
 /**
  * Credential in stored form, including the witness and metadata.
  */
-type StoredCredential<Data = any, Witness = any, Metadata = any> = {
+type StoredCredential<Data = unknown, Witness = unknown> = {
   version: 'v0';
   witness: Witness;
-  metadata: Metadata;
+  metadata: JSONValue | undefined;
   credential: Credential<Data>;
 };
 
 /**
  * Hash a credential.
  */
-function hashCredential<Data>(credential: Credential<Data>) {
-  let type = Schema.type(credential);
-  return Hashed.create(type, credentialHash).hash(type.fromValue(credential));
-}
-
-/**
- * Hash a credential inside a zk circuit.
- *
- * The differences to `hashCredential()` are:
- * - we have a dataType given which defines the circuit and therefore shouldn't be derived from the credential
- * - we can't convert the credential data from plain JS values
- */
-function hashCredentialInCircuit<Data>(
-  dataType: NestedProvableFor<Data>,
-  credential: Credential<Data>
-) {
-  let type = NestedProvable.get(withOwner(dataType));
-  return Hashed.create(type, credentialHash).hash(credential);
+function hashCredential({ owner, data }: Credential) {
+  let ownerHash = Poseidon.hash(owner.toFields());
+  let dataHash = hashDynamic(data);
+  return Poseidon.hash([ownerHash, dataHash]);
 }
 
 /**
@@ -121,8 +100,8 @@ type CredentialInputs = {
 
   credentials: {
     spec: CredentialSpec;
-    credential: Credential<any>;
-    witness: any;
+    credential: Credential;
+    witness: unknown;
   }[];
 };
 
@@ -132,9 +111,9 @@ type CredentialInputs = {
 type CredentialOutputs = {
   owner: PublicKey;
   credentials: {
-    credential: Credential<any>;
+    data: unknown;
+    witness: unknown;
     issuer: Field;
-    witness: any;
   }[];
 };
 
@@ -144,8 +123,8 @@ function verifyCredentials({
   credentials,
 }: CredentialInputs): CredentialOutputs {
   // pack credentials in hashes
-  let credHashes = credentials.map(({ spec: { data }, credential }) =>
-    hashCredentialInCircuit(data, credential)
+  let credHashes = credentials.map(({ credential }) =>
+    hashCredential(credential)
   );
 
   // verify each credential using its own verification method
@@ -154,7 +133,6 @@ function verifyCredentials({
   });
 
   // create issuer hashes for each credential
-  // TODO would be nice to make this a `Hashed<Issuer>` over a more informative `Issuer` type, for easier use in the app circuit
   let issuers = credentials.map(({ spec, witness }) => spec.issuer(witness));
 
   // assert that all credentials have the same owner, and determine that owner
@@ -167,10 +145,9 @@ function verifyCredentials({
 
   // verify the owner signature
   if (owner !== undefined) {
-    let hashes = credHashes.map((c) => c.hash);
     let ok = ownerSignature.verify(owner, [
       context,
-      ...zip(hashes, issuers).flat(),
+      ...zip(credHashes, issuers).flat(),
     ]);
     ok.assertTrue('Invalid owner signature');
   }
@@ -181,9 +158,9 @@ function verifyCredentials({
     // credential-issuer pairs
     credentials: zip(credentials, issuers).map(
       ([{ credential, witness }, issuer]) => ({
-        credential,
-        issuer,
+        data: credential.data,
         witness,
+        issuer,
       })
     ),
   };
@@ -193,14 +170,12 @@ function signCredentials<Private, Data>(
   ownerKey: PrivateKey,
   context: Field,
   ...credentials: {
-    credentialType: CredentialSpec<any, Private, Data>;
+    credentialType: CredentialSpec<Private, Data>;
     credential: Credential<Data>;
     witness: Private;
   }[]
 ) {
-  let hashes = credentials.map(
-    ({ credential }) => hashCredential(credential).hash
-  );
+  let hashes = credentials.map(({ credential }) => hashCredential(credential));
   let issuers = credentials.map(({ credentialType, witness }) =>
     credentialType.issuer(witness)
   );
@@ -209,7 +184,7 @@ function signCredentials<Private, Data>(
 
 function credentialMatchesSpec(
   spec: CredentialSpec,
-  credential: StoredCredential<unknown>
+  credential: StoredCredential
 ): boolean {
   // check version
   if (credential.version !== 'v0') return false;
@@ -221,57 +196,21 @@ function credentialMatchesSpec(
   return provableTypeMatches(credential.credential.data, spec.data);
 }
 
-function defineCredential<
-  Type extends CredentialType,
-  Witness extends NestedProvable
->(config: {
-  credentialType: Type;
-  witness: Witness;
-
-  verify<Data>(
-    witness: InferNestedProvable<Witness>,
-    credHash: Hashed<Credential<Data>>
-  ): void;
-
-  verifyOutsideCircuit<Data>(
-    witness: InferNestedProvable<Witness>,
-    credHash: Hashed<Credential<Data>>
-  ): Promise<void>;
-
-  issuer(witness: InferNestedProvable<Witness>): Field;
-
-  matchesSpec(witness: InferNestedProvable<Witness>): boolean;
-}) {
-  return function credential<DataType extends NestedProvable>(
-    dataType: DataType
-  ): CredentialSpec<
-    Type,
-    InferNestedProvable<Witness>,
-    InferNestedProvable<DataType>
-  > {
-    return {
-      type: 'credential',
-      credentialType: config.credentialType,
-      witness: config.witness as any,
-      data: dataType as any,
-      verify: config.verify,
-      verifyOutsideCircuit: config.verifyOutsideCircuit,
-      issuer: config.issuer,
-      matchesSpec: config.matchesSpec,
-    };
-  };
-}
-
 // dummy credential with no proof attached
-type Unsigned<Data> = StoredCredential<Data, undefined, undefined>;
 
-const Unsigned = defineCredential({
-  credentialType: 'unsigned',
-  witness: Undefined,
+type Unsigned<Data> = StoredCredential<Data, undefined>;
+
+const UnsignedBase = {
+  credentialType: 'unsigned' as const,
+  witness: undefined,
+
+  witnessType() {
+    return Undefined;
+  },
 
   // do nothing
   verify() {},
-  async verifyOutsideCircuit() {},
+  async validate() {},
 
   // dummy issuer
   issuer() {
@@ -282,25 +221,28 @@ const Unsigned = defineCredential({
   matchesSpec() {
     return true;
   },
-});
+};
+
+function Unsigned<DataType extends NestedProvable>(
+  data: DataType
+): CredentialSpec<undefined, InferNestedProvable<DataType>> {
+  return { ...UnsignedBase, data: inferNestedProvable(data) };
+}
 
 function unsafeMissingOwner(): PublicKey {
   return PublicKey.fromGroup(Group.generator);
 }
 
-function createUnsigned<Data>(data: Data): Unsigned<Data> {
+function createUnsigned<Data>(
+  data: Data,
+  metadata?: JSONValue
+): Unsigned<Data> {
   return {
     version: 'v0',
-    metadata: undefined,
+    metadata,
     credential: { owner: unsafeMissingOwner(), data },
     witness: undefined,
   };
-}
-
-function credentialHash({ owner, data }: Credential<unknown>) {
-  let ownerHash = Poseidon.hash(owner.toFields());
-  let dataHash = hashDynamic(data);
-  return Poseidon.hash([ownerHash, dataHash]);
 }
 
 // helpers to create derived types

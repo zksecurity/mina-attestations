@@ -1,8 +1,7 @@
-import { initializeBindings, type PublicKey } from 'o1js';
+import { Field, initializeBindings, type PublicKey } from 'o1js';
 import {
   createUnsigned,
   type CredentialSpec,
-  type CredentialType,
   hashCredential,
   type StoredCredential,
   Unsigned,
@@ -10,19 +9,26 @@ import {
 import {
   createNative,
   Native,
-  type Witness as NativeWitness,
+  type NativeWitness,
 } from './credential-native.ts';
 import {
   Imported,
-  type Witness as ImportedWitness,
+  ImportedWitnessSpec,
+  type ImportedWitness,
 } from './credential-imported.ts';
 import { assert, hasProperty } from './util.ts';
 import { type InferNestedProvable, NestedProvable } from './nested.ts';
 import {
+  deserializeNestedProvable,
   deserializeNestedProvableValue,
+  serializeNestedProvable,
   serializeNestedProvableValue,
 } from './serialize-provable.ts';
 import { Schema } from './dynamic/schema.ts';
+import {
+  StoredCredentialSchema,
+  type CredentialSpecJSON,
+} from './validation.ts';
 
 export { Credential, validateCredential };
 
@@ -67,12 +73,13 @@ const Credential = {
    */
   async fromJSON(json: string): Promise<StoredCredential> {
     await initializeBindings();
-    let obj = JSON.parse(json);
+    let obj: unknown = JSON.parse(json);
+    let parsed = StoredCredentialSchema.parse(obj);
     return {
-      version: obj.version,
-      witness: deserializeNestedProvableValue(obj.witness),
-      metadata: obj.metadata,
-      credential: deserializeNestedProvableValue(obj.credential),
+      version: parsed.version,
+      witness: deserializeNestedProvableValue(parsed.witness),
+      metadata: parsed.metadata,
+      credential: deserializeNestedProvableValue(parsed.credential),
     };
   },
 
@@ -80,6 +87,9 @@ const Credential = {
    * Validate a credential.
    */
   validate: validateCredential,
+
+  specToJSON,
+  specFromJSON,
 
   /**
    * Serialize the data input to a `signCredential()` call.
@@ -103,22 +113,25 @@ const Credential = {
 
 type Witness = NativeWitness | ImportedWitness;
 
-async function validateCredential(
-  credential: StoredCredential<unknown, unknown, unknown>
-) {
-  assert(
-    credential.version === 'v0',
-    `Unsupported credential version: ${credential.version}`
-  );
+async function validateCredential(credential: StoredCredential) {
+  let {
+    version,
+    witness,
+    credential: { data },
+  } = credential;
+  assert(version === 'v0', `Unsupported credential version: ${version}`);
 
-  assert(knownWitness(credential.witness), 'Unknown credential type');
-
-  let spec = getCredentialSpec(credential.witness)(
-    Schema.nestedType(credential.credential.data)
-  );
+  assert(knownWitness(witness), 'Unknown credential type');
 
   let credHash = hashCredential(credential.credential);
-  await spec.verifyOutsideCircuit(credential.witness, credHash);
+
+  if (witness.type === 'native') {
+    const spec = Native(Schema.nestedType(data));
+    await spec.validate(witness, credHash);
+  }
+  if (witness.type === 'imported') {
+    await Imported.Generic.validate(witness, credHash);
+  }
 }
 
 const witnessTypes = new Set<unknown>([
@@ -130,15 +143,36 @@ function knownWitness(witness: unknown): witness is Witness {
   return hasProperty(witness, 'type') && witnessTypes.has(witness.type);
 }
 
-function getCredentialSpec<W extends Witness>(
-  witness: W
-): <DataType extends NestedProvable>(
-  dataType: DataType
-) => CredentialSpec<CredentialType, W, InferNestedProvable<DataType>> {
-  switch (witness.type) {
+/**
+ * Serialize a credential spec to a JSON value.
+ */
+function specToJSON(spec: CredentialSpec): CredentialSpecJSON {
+  return {
+    type: 'credential',
+    credentialType: spec.credentialType,
+    witness:
+      spec.witness === undefined
+        ? null
+        : ImportedWitnessSpec.toJSON(spec.witness),
+    data: serializeNestedProvable(spec.data),
+  };
+}
+
+/**
+ * Deserialize a credential spec from a JSON value.
+ */
+function specFromJSON(json: CredentialSpecJSON): CredentialSpec<any, any> {
+  let data = deserializeNestedProvable(json.data);
+  switch (json.credentialType) {
     case 'native':
-      return Credential.Native as any;
+      return Native(data);
+    case 'unsigned':
+      return Unsigned(data);
     case 'imported':
-      return Credential.Imported.Generic as any;
+      assert(json.witness !== null, 'Missing witness');
+      let witness = ImportedWitnessSpec.fromJSON(json.witness);
+      return Imported.create({ data, witness });
+    default:
+      throw Error(`Unsupported credential id: ${json.credentialType}`);
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "mina-attestations",
-  "version": "0.3.2",
+  "version": "0.3.6",
   "workspaces": [
     "examples/web-demo",
     "examples/web-demo/api-server"
@@ -32,7 +32,7 @@
       "import": "./build/src/imported.js"
     },
     "./validation": {
-      "import": "./build/src/validation.js"
+      "import": "./build/src/validation-index.js"
     }
   },
   "scripts": {

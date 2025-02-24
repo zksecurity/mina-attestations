@@ -3,11 +3,27 @@ import { Credential } from 'mina-attestations';
 import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 import { storeCredential } from './store-credential';
 import { getPublicKey } from './obtain-credential';
+import { IS_DEV } from '../config';
 
-export { importZkpassProof, defaultAppId, defaultSchema, exampleProof };
+export {
+  importZkpassProof,
+  defaultAppId,
+  defaultSchema,
+  exampleProofAndSchema,
+};
 
-const defaultAppId = 'd15ae509-2b52-4286-920b-41b011b8285c';
-const defaultSchema = '3ec11dea72464d729f76a7d42b7e98b8';
+// created for URL https://mina-attestations-demo.zksecurity.xyz, won't work on a different URL
+const appIdProd = '8ebbbb4a-4b17-4709-8a8b-cbfebb3ca9ae';
+const schemaIdProd = '319ef6c9e03e47b38fb24420a1f2060c';
+
+// created for URL http://localhost:5173, won't work on a different URL
+const appIdDev = 'd15ae509-2b52-4286-920b-41b011b8285c';
+const schemaIdDev = '3ec11dea72464d729f76a7d42b7e98b8';
+
+let defaultAppId = IS_DEV ? appIdDev : appIdProd;
+let defaultSchema = IS_DEV ? schemaIdDev : schemaIdProd;
+
+// proof created with `schemaIdDev`
 const exampleProof: ZkPassResponseItem = {
   taskId: '056cf69572204b03b143a06203c635d3',
   publicFields: [],
@@ -21,6 +37,7 @@ const exampleProof: ZkPassResponseItem = {
   validatorSignature:
     '0x8b39bbbd8304f1f80b6b92e83adefa95bb89f99e5725ded54ddbb6276abcaa8c0c7697b842dd82f0361fa07cd2c67016f8497464b7645e99a61909283fe023971c',
 };
+const exampleProofAndSchema = { proof: exampleProof, schema: schemaIdDev };
 
 async function importZkpassProof(
   schema: string,

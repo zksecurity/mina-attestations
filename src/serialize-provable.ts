@@ -17,8 +17,9 @@ import {
   VerificationKey,
   Struct,
   type JsonProof,
+  Int64,
 } from 'o1js';
-import { assert, assertHasMethod, defined } from './util.ts';
+import { assert, assertHasMethod, defined, mapObject } from './util.ts';
 import { ProvableFactory, type SerializedFactory } from './provable-factory.ts';
 import type { JSONValue } from './types.ts';
 
@@ -37,6 +38,7 @@ export {
   deserializeNestedProvable,
   deserializeNestedProvableValue,
   replaceNull,
+  replaceUndefined,
 };
 
 // Supported o1js base types
@@ -46,6 +48,7 @@ const supportedTypes = {
   UInt8,
   UInt32,
   UInt64,
+  Int64,
   PublicKey,
   Signature,
   Undefined,
@@ -114,7 +117,8 @@ function serializeProvableType(type: ProvableType<any>): SerializedType {
   return { _type };
 }
 
-type SerializedValue = SerializedType & { value: any };
+type SerializedValue = SerializedType & { value: JSONValue };
+type SerializedValueAny = SerializedType & { value: any };
 
 function serializeProvable(value: any): SerializedType & { value: JSONValue } {
   let typeClass = ProvableType.fromValue(value);
@@ -267,7 +271,7 @@ function deserializeProvableType(type: SerializedType): ProvableType<any> {
   return result;
 }
 
-function deserializeProvable(json: SerializedValue): any {
+function deserializeProvable(json: SerializedValueAny): any {
   if (ProvableFactory.isSerialized(json))
     return ProvableFactory.valueFromJSON(json);
 
@@ -283,6 +287,8 @@ function deserializeProvable(json: SerializedValue): any {
       return UInt32.fromJSON(value);
     case 'UInt64':
       return UInt64.fromJSON(value);
+    case 'Int64':
+      return Int64.fromJSON(value);
     case 'PublicKey':
       return PublicKey.fromJSON(value);
     case 'Signature':
@@ -375,21 +381,23 @@ function deserializeNestedProvableValue(value: any): any {
   throw Error(`Invalid nested provable value: ${value}`);
 }
 
-function replaceNull(obj: Record<string, any>): Record<string, any> {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      key,
-      value === null ? undefined : value,
-    ])
-  );
+function replaceNull<Input extends Record<string, JSONValue>>(
+  obj: Input
+): {
+  [K in keyof Input]: Input[K] extends infer T | null
+    ? T | undefined
+    : Input[K];
+} {
+  return mapObject(obj, (value) => (value === null ? undefined : value) as any);
 }
 
 // `null` is preserved in JSON, but `undefined` is removed
-function replaceUndefined(obj: Record<string, any>): Record<string, any> {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      key,
-      value === undefined ? null : value,
-    ])
-  );
+function replaceUndefined<Input extends Record<string, JSONValue | undefined>>(
+  obj: Input
+): {
+  [K in keyof Input]: Input[K] extends infer T | undefined
+    ? T | null
+    : Input[K];
+} {
+  return mapObject(obj, (value) => (value === undefined ? null : value) as any);
 }

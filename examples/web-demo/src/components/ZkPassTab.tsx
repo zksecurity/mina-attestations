@@ -3,7 +3,7 @@ import { Label } from './ui/label';
 import TransgateConnect from '@zkpass/transgate-js-sdk';
 import type { ZkPassResponseItem } from 'mina-attestations/imported';
 import {
-  exampleProof,
+  exampleProofAndSchema,
   defaultSchema,
   importZkpassProof,
   defaultAppId,
@@ -134,8 +134,8 @@ const ZkPassTab: React.FC<{ useMockWallet: boolean }> = ({ useMockWallet }) => {
           <button
             type="button"
             onClick={() => {
-              setSchemaIdWithResult(defaultSchema);
-              setResult(exampleProof);
+              setSchemaIdWithResult(exampleProofAndSchema.schema);
+              setResult(exampleProofAndSchema.proof);
             }}
             className="flex-1 p-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
           >

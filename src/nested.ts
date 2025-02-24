@@ -11,7 +11,7 @@ import {
 import { array, ProvableType } from './o1js-missing.ts';
 import { assertIsObject } from './util.ts';
 
-export { NestedProvable };
+export { NestedProvable, inferNestedProvable };
 
 export type { NestedProvableFor, InferNestedProvable };
 
@@ -46,6 +46,13 @@ const NestedProvable = {
     }
   },
 };
+
+function inferNestedProvable<Type extends NestedProvable>(
+  type: Type
+): NestedProvableFor<InferNestedProvable<Type>> {
+  // TODO annoying that this cast doesn't work without overriding the type
+  return type as any;
+}
 
 // TODO!! NestedProvable should accurately requre hashable type
 

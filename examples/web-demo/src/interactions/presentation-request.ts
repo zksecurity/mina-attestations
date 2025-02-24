@@ -1,4 +1,8 @@
 import { Presentation, PresentationRequest } from 'mina-attestations';
+import {
+  PresentationRequestSchema,
+  PrettyPrinter,
+} from 'mina-attestations/validation';
 import { getStoredCredentials } from './store-credential';
 import { privateKey } from './mock-wallet';
 import { API_URL } from '../config';
@@ -88,6 +92,11 @@ async function presentationRequest(
 
 async function createMockPresentation(requestJson: string) {
   let credentials = await getStoredCredentials(true);
+
+  let validatedRequest = PresentationRequestSchema.parse(
+    JSON.parse(requestJson)
+  );
+  console.log(PrettyPrinter.printPresentationRequest(validatedRequest));
 
   let request = PresentationRequest.fromJSON('https', requestJson);
   console.time('compile');

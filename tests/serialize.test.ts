@@ -5,22 +5,22 @@ import { Operation, Node } from '../src/operation.ts';
 import {
   serializeNode,
   serializeInput,
-  convertSpecToSerializable,
   serializeSpec,
-  validateSpecHash,
   serializeInputContext,
-} from '../src/serialize.ts';
-import { Bool, Field, PublicKey, Signature, UInt32, UInt64, UInt8 } from 'o1js';
-import {
   deserializeInputContext,
-  deserializeSpec,
-} from '../src/deserialize.ts';
+} from '../src/serialize-spec.ts';
+import { Bool, Field, PublicKey, Signature, UInt32, UInt64, UInt8 } from 'o1js';
 import { Credential } from '../src/credential-index.ts';
 import {
   serializeNestedProvable,
   serializeProvableType,
 } from '../src/serialize-provable.ts';
-import { ContextSchema, InputSchema, NodeSchema } from '../src/validation.ts';
+import {
+  ContextSchema,
+  type InputJSON,
+  InputSchema,
+  NodeSchema,
+} from '../src/validation.ts';
 
 test('Serialize Inputs', async (t) => {
   await t.test('should serialize basic types correctly', () => {
@@ -656,15 +656,13 @@ test('serializeInput', async (t) => {
 
     const serialized = serializeInput(input);
 
-    const expected = {
+    const expected: InputJSON = {
       type: 'credential',
       credentialType: 'unsigned',
-      witness: { _type: 'Undefined' },
+      witness: null,
       data: { _type: 'Field' },
     };
     assert.deepStrictEqual(serialized, expected);
-
-    console.log('serialized:', serialized.witness);
 
     const result = InputSchema.safeParse(serialized);
 
@@ -681,14 +679,10 @@ test('serializeInput', async (t) => {
 
     const serialized = serializeInput(input);
 
-    const expected = {
+    const expected: InputJSON = {
       type: 'credential',
       credentialType: 'native',
-      witness: {
-        type: { _type: 'Constant', value: 'native' },
-        issuer: { _type: 'PublicKey' },
-        issuerSignature: { _type: 'Signature' },
-      },
+      witness: null,
       data: {
         age: { _type: 'Field' },
         isAdmin: { _type: 'Bool' },
@@ -718,10 +712,10 @@ test('serializeInput', async (t) => {
 
     const serialized = serializeInput(input);
 
-    const expected = {
+    const expected: InputJSON = {
       type: 'credential',
       credentialType: 'unsigned',
-      witness: { _type: 'Undefined' },
+      witness: null,
       data: {
         personal: {
           age: { _type: 'Field' },
@@ -788,48 +782,46 @@ test('convertSpecToSerializable', async (t) => {
       })
     );
 
-    const serialized = convertSpecToSerializable(spec);
+    const serialized = serializeSpec(spec);
 
     const expected = {
       inputs: {
         age: {
           type: 'credential',
           credentialType: 'unsigned',
-          witness: { _type: 'Undefined' },
+          witness: null,
           data: { _type: 'Field' },
-        },
+        } satisfies InputJSON,
         isAdmin: { type: 'claim', data: { _type: 'Bool' } },
         maxAge: { type: 'constant', data: { _type: 'Field' }, value: '100' },
       },
-      logic: {
-        assert: {
-          type: 'and',
-          inputs: [
-            {
-              type: 'lessThan',
-              left: {
-                type: 'credential',
-                credentialKey: 'age',
-                credentialType: 'unsigned',
-              },
-              right: {
-                type: 'property',
-                key: 'maxAge',
-                inner: { type: 'root' },
-              },
+      assert: {
+        type: 'and',
+        inputs: [
+          {
+            type: 'lessThan',
+            left: {
+              type: 'credential',
+              credentialKey: 'age',
+              credentialType: 'unsigned',
             },
-            {
+            right: {
               type: 'property',
-              key: 'isAdmin',
+              key: 'maxAge',
               inner: { type: 'root' },
             },
-          ],
-        },
-        outputClaim: {
-          type: 'credential',
-          credentialKey: 'age',
-          credentialType: 'unsigned',
-        },
+          },
+          {
+            type: 'property',
+            key: 'isAdmin',
+            inner: { type: 'root' },
+          },
+        ],
+      },
+      outputClaim: {
+        type: 'credential',
+        credentialKey: 'age',
+        credentialType: 'unsigned',
       },
     };
 
@@ -851,46 +843,40 @@ test('convertSpecToSerializable', async (t) => {
       })
     );
 
-    const serialized = convertSpecToSerializable(spec);
+    const serialized = serializeSpec(spec);
     const expected = {
       inputs: {
         signedData: {
           type: 'credential',
           credentialType: 'native',
-          witness: {
-            type: { _type: 'Constant', value: 'native' },
-            issuer: { _type: 'PublicKey' },
-            issuerSignature: { _type: 'Signature' },
-          },
+          witness: null,
           data: {
             field: { _type: 'Field' },
           },
-        },
+        } satisfies InputJSON,
         zeroField: { type: 'constant', data: { _type: 'Field' }, value: '0' },
       },
-      logic: {
-        assert: {
-          type: 'equals',
-          left: {
-            type: 'property',
-            key: 'field',
-            inner: {
-              type: 'credential',
-              credentialKey: 'signedData',
-              credentialType: 'native',
-            },
-          },
-          right: {
-            type: 'property',
-            key: 'zeroField',
-            inner: { type: 'root' },
+      assert: {
+        type: 'equals',
+        left: {
+          type: 'property',
+          key: 'field',
+          inner: {
+            type: 'credential',
+            credentialKey: 'signedData',
+            credentialType: 'native',
           },
         },
-        outputClaim: {
-          type: 'credential',
-          credentialKey: 'signedData',
-          credentialType: 'native',
+        right: {
+          type: 'property',
+          key: 'zeroField',
+          inner: { type: 'root' },
         },
+      },
+      outputClaim: {
+        type: 'credential',
+        credentialKey: 'signedData',
+        credentialType: 'native',
       },
     };
     assert.deepStrictEqual(serialized, expected);
@@ -912,126 +898,62 @@ test('convertSpecToSerializable', async (t) => {
       })
     );
 
-    const serialized = convertSpecToSerializable(spec);
+    const serialized = serializeSpec(spec);
     const expected = {
       inputs: {
         field1: {
           type: 'credential',
           credentialType: 'unsigned',
-          witness: { _type: 'Undefined' },
+          witness: null,
           data: { _type: 'Field' },
-        },
+        } satisfies InputJSON,
         field2: {
           type: 'credential',
           credentialType: 'unsigned',
-          witness: { _type: 'Undefined' },
+          witness: null,
           data: { _type: 'Field' },
-        },
+        } satisfies InputJSON,
         zeroField: { type: 'constant', data: { _type: 'Field' }, value: '0' },
       },
-      logic: {
-        assert: {
-          type: 'and',
-          inputs: [
-            {
-              type: 'lessThan',
-              left: {
-                type: 'credential',
-                credentialKey: 'field1',
-                credentialType: 'unsigned',
-              },
-              right: {
-                type: 'credential',
-                credentialKey: 'field2',
-                credentialType: 'unsigned',
-              },
+      assert: {
+        type: 'and',
+        inputs: [
+          {
+            type: 'lessThan',
+            left: {
+              type: 'credential',
+              credentialKey: 'field1',
+              credentialType: 'unsigned',
             },
-            {
-              type: 'equals',
-              left: {
-                type: 'credential',
-                credentialKey: 'field1',
-                credentialType: 'unsigned',
-              },
-              right: {
-                type: 'property',
-                key: 'zeroField',
-                inner: { type: 'root' },
-              },
+            right: {
+              type: 'credential',
+              credentialKey: 'field2',
+              credentialType: 'unsigned',
             },
-          ],
-        },
-        outputClaim: {
-          type: 'credential',
-          credentialKey: 'field2',
-          credentialType: 'unsigned',
-        },
+          },
+          {
+            type: 'equals',
+            left: {
+              type: 'credential',
+              credentialKey: 'field1',
+              credentialType: 'unsigned',
+            },
+            right: {
+              type: 'property',
+              key: 'zeroField',
+              inner: { type: 'root' },
+            },
+          },
+        ],
+      },
+      outputClaim: {
+        type: 'credential',
+        credentialKey: 'field2',
+        credentialType: 'unsigned',
       },
     };
     assert.deepStrictEqual(serialized, expected);
   });
-});
-
-test('Serialize and deserialize spec with hash', async (t) => {
-  const spec = Spec(
-    {
-      age: Credential.Unsigned(Field),
-      isAdmin: Claim(Bool),
-      ageLimit: Constant(Field, Field(100)),
-    },
-    ({ age, isAdmin, ageLimit }) => ({
-      assert: Operation.and(Operation.lessThan(age, ageLimit), isAdmin),
-      outputClaim: age,
-    })
-  );
-
-  const serialized = await serializeSpec(spec);
-
-  await t.test('should include a hash in serialized output', () => {
-    const parsed = JSON.parse(serialized);
-    assert('hash' in parsed, 'Serialized spec should include a hash');
-    assert('spec' in parsed, 'Serialized spec should include the spec string');
-    assert(typeof parsed.spec === 'string', 'Spec should be a string');
-  });
-
-  await t.test('should validate hash correctly', () => {
-    assert(validateSpecHash(serialized), 'Hash should be valid');
-  });
-
-  await t.test('should detect tampering', async () => {
-    const tampered = JSON.parse(serialized);
-    const tamperedSpec = JSON.parse(tampered.spec);
-    tamperedSpec.inputs.age.type = 'claim';
-    tampered.spec = JSON.stringify(tamperedSpec);
-    const tamperedString = JSON.stringify(tampered);
-    assert(
-      !(await validateSpecHash(tamperedString)),
-      'Should detect tampered spec'
-    );
-  });
-
-  await t.test(
-    'should throw error on deserialization of tampered spec',
-    async () => {
-      const tampered = JSON.parse(serialized);
-      const tamperedSpec = JSON.parse(tampered.spec);
-      tamperedSpec.inputs.age.type = 'claim';
-      tampered.spec = JSON.stringify(tamperedSpec);
-      const tamperedString = JSON.stringify(tampered);
-
-      try {
-        await deserializeSpec(tamperedString);
-        assert.fail('Expected an error to be thrown');
-      } catch (error) {
-        assert(error instanceof Error, 'Should throw an Error object');
-        assert.strictEqual(
-          error.message,
-          'Invalid spec hash',
-          'Error message should match expected message'
-        );
-      }
-    }
-  );
 });
 
 test('Serialize spec with owner and issuer nodes', async (t) => {
@@ -1056,15 +978,12 @@ test('Serialize spec with owner and issuer nodes', async (t) => {
     })
   );
 
-  const serialized = await serializeSpec(spec);
-  const parsed = JSON.parse(serialized);
-  const serializedSpec = JSON.parse(parsed.spec);
+  const serialized = serializeSpec(spec) as any;
 
-  assert.deepStrictEqual(serializedSpec.logic.outputClaim.data.owner, {
+  assert.deepStrictEqual(serialized.outputClaim.data.owner, {
     type: 'owner',
   });
-
-  assert.deepStrictEqual(serializedSpec.logic.outputClaim.data.issuer, {
+  assert.deepStrictEqual(serialized.outputClaim.data.issuer, {
     type: 'issuer',
     credentialKey: 'signedData',
   });

@@ -124,19 +124,12 @@ async function circuit() {
   });
 
   await test('hashCredential()', () => {
-    let originalHash = hashCredential({
-      owner,
-      data: original,
-    }).hash;
-
-    let originalStructHash = hashCredential({
-      owner,
-      data: originalStruct,
-    }).hash;
+    let originalHash = hashCredential({ owner, data: original });
+    let originalStructHash = hashCredential({ owner, data: originalStruct });
 
     originalStructHash.assertEquals(originalHash, 'hashCredential() (struct)');
 
-    let subschemaHash = hashCredential({ owner, data: record }).hash;
+    let subschemaHash = hashCredential({ owner, data: record });
     subschemaHash.assertEquals(
       originalHash,
       'hashCredential() (dynamic record)'

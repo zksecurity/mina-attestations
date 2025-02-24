@@ -1,69 +1,79 @@
 /**
  * Native signature credential
  */
-import { Poseidon, PrivateKey, PublicKey, Signature } from 'o1js';
+import { Field, Poseidon, PrivateKey, PublicKey, Signature } from 'o1js';
 import {
   type StoredCredential,
   type Credential,
-  defineCredential,
   hashCredential,
+  type CredentialSpec,
 } from './credential.ts';
-import { NestedProvable } from './nested.ts';
+import {
+  inferNestedProvable,
+  type InferNestedProvable,
+  NestedProvable,
+} from './nested.ts';
 import { prefixes } from './constants.ts';
 import { ProvableType } from './o1js-missing.ts';
 import { deserializeNestedProvableValue } from './serialize-provable.ts';
+import type { JSONValue } from './types.ts';
 
-export { Native, createNative, type Witness, type Metadata };
+export { Native, createNative, type NativeWitness };
 
-type Witness = {
+type NativeWitness = {
   type: 'native';
   issuer: PublicKey;
   issuerSignature: Signature;
 };
 
-// TODO
-type Metadata = undefined;
+type Native<Data> = StoredCredential<Data, NativeWitness>;
 
-type Native<Data> = StoredCredential<Data, Witness, Metadata>;
+const NativeBase = {
+  credentialType: 'native' as const,
 
-const Native = Object.assign(
-  defineCredential({
-    credentialType: 'native',
-    witness: {
+  witness: undefined,
+  witnessType() {
+    return {
       type: ProvableType.constant('native' as const),
       issuer: PublicKey,
       issuerSignature: Signature,
-    },
+    };
+  },
 
-    // verify the signature
-    verify({ issuer, issuerSignature }, credHash) {
-      let ok = issuerSignature.verify(issuer, [credHash.hash]);
-      ok.assertTrue('Invalid signature');
-    },
-    async verifyOutsideCircuit({ issuer, issuerSignature }, credHash) {
-      let ok = issuerSignature.verify(issuer, [credHash.hash]);
-      ok.assertTrue('Invalid signature');
-    },
+  // verify the signature
+  verify({ issuer, issuerSignature }: NativeWitness, credHash: Field) {
+    let ok = issuerSignature.verify(issuer, [credHash]);
+    ok.assertTrue('Invalid signature');
+  },
 
-    // issuer == issuer public key
-    issuer({ issuer }) {
-      return Poseidon.hashWithPrefix(prefixes.issuerNative, issuer.toFields());
-    },
+  async validate({ issuer, issuerSignature }: NativeWitness, credHash: Field) {
+    let ok = issuerSignature.verify(issuer, [credHash]);
+    ok.assertTrue('Invalid signature');
+  },
 
-    matchesSpec(witness) {
-      return witness.type === 'native';
-    },
-  }),
-  {
-    issuer(issuer: PublicKey) {
-      return Poseidon.hashWithPrefix(prefixes.issuerNative, issuer.toFields());
-    },
-  }
-);
+  // issuer == issuer public key
+  issuer({ issuer }: NativeWitness) {
+    return Poseidon.hashWithPrefix(prefixes.issuerNative, issuer.toFields());
+  },
+
+  matchesSpec(witness: NativeWitness) {
+    return witness.type === 'native';
+  },
+};
+
+function Native<DataType extends NestedProvable>(
+  dataType: DataType
+): CredentialSpec<NativeWitness, InferNestedProvable<DataType>> {
+  return { ...NativeBase, data: inferNestedProvable(dataType) };
+}
+Native.issuer = function (issuer: PublicKey) {
+  return Poseidon.hashWithPrefix(prefixes.issuerNative, issuer.toFields());
+};
 
 function createNative<Data>(
   issuerPrivateKey: PrivateKey,
-  credentialInput: Credential<Data> | string
+  credentialInput: Credential<Data> | string,
+  metadata?: JSONValue
 ): Native<Data> {
   let issuer = issuerPrivateKey.toPublicKey();
   let credential =
@@ -71,12 +81,12 @@ function createNative<Data>(
       ? deserializeNestedProvableValue(JSON.parse(credentialInput))
       : credentialInput;
   let credHash = hashCredential(credential);
-  let issuerSignature = Signature.create(issuerPrivateKey, [credHash.hash]);
+  let issuerSignature = Signature.create(issuerPrivateKey, [credHash]);
 
   return {
     version: 'v0',
     witness: { type: 'native', issuer, issuerSignature },
-    metadata: undefined,
+    metadata,
     credential,
   };
 }

@@ -5,17 +5,10 @@ import { NestedProvable } from './nested.ts';
 import { DynamicArray } from './dynamic/dynamic-array.ts';
 import { DynamicRecord, extractProperty } from './dynamic/dynamic-record.ts';
 import { hashDynamicWithPrefix } from './dynamic/dynamic-hash.ts';
-import type { Input, RootType } from './program-spec.ts';
-import type {
-  Credential,
-  CredentialSpec,
-  CredentialType,
-} from './credential.ts';
-import type { Witness as WitnessNative } from './credential-native.ts';
-import {
-  Imported,
-  type Witness as WitnessImported,
-} from './credential-imported.ts';
+import type { Input, RootValue, RootType } from './program-spec.ts';
+import type { CredentialSpec, CredentialType } from './credential.ts';
+import type { NativeWitness } from './credential-native.ts';
+import { Imported, type ImportedWitness } from './credential-imported.ts';
 
 export { Node, Operation };
 export { type CredentialNode, type InputToNode, root };
@@ -106,7 +99,6 @@ type Node<Data = any> =
 type GetData<T extends Input> = T extends Input<infer Data> ? Data : never;
 
 type InputToNode<T extends Input> = T extends CredentialSpec<
-  any,
   infer Witness,
   infer Data
 >
@@ -118,20 +110,20 @@ const Node = {
   evalType: evalNodeType,
 };
 
-function evalNode<Data>(root: object, node: Node<Data>): Data {
+function evalNode<Data>(root: RootValue, node: Node<Data>): Data {
   switch (node.type) {
     case 'constant':
       return node.data;
     case 'root':
-      return root as any;
+      return root as Data;
 
     // credential operations
     case 'owner':
-      return (root as any).owner;
+      return root.owner as Data;
     case 'credential':
-      return assertCredential(root, node).credential.data;
+      return assertCredential(root, node).data;
     case 'issuer':
-      return assertCredential(root, node).issuer as any;
+      return assertCredential(root, node).issuer as Data;
     case 'issuerPublicKey':
       return assertNativeCredential(root, node).witness.issuer as Data;
     case 'verificationKeyHash':
@@ -217,7 +209,7 @@ function evalNode<Data>(root: object, node: Node<Data>): Data {
 }
 
 function arithmeticOperation(
-  root: object,
+  root: RootValue,
   node: {
     type: 'add' | 'sub' | 'mul' | 'div';
     left: Node<NumericType>;
@@ -242,7 +234,7 @@ function arithmeticOperation(
 }
 
 function compareNodes(
-  root: object,
+  root: RootValue,
   node: { left: Node<any>; right: Node<any> },
   allowEqual: boolean
 ): Bool {
@@ -500,7 +492,7 @@ function issuer(credential: CredentialNode): Node<Field> {
 function issuerPublicKey({
   credentialType,
   credentialKey,
-}: CredentialNode<any, WitnessNative>): Node<PublicKey> {
+}: CredentialNode<any, NativeWitness>): Node<PublicKey> {
   assert(
     credentialType === 'native',
     '`issuerPublicKey` is only available on signed credentials'
@@ -511,7 +503,7 @@ function issuerPublicKey({
 function verificationKeyHash({
   credentialType,
   credentialKey,
-}: CredentialNode<any, WitnessImported>): Node<Field> {
+}: CredentialNode<any, ImportedWitness>): Node<Field> {
   assert(
     credentialType === 'imported',
     '`verificationKeyHash` is only available on imported credentials'
@@ -522,7 +514,7 @@ function verificationKeyHash({
 function publicInput<Input>({
   credentialType,
   credentialKey,
-}: CredentialNode<any, WitnessImported<any, Input>>): Node<Input> {
+}: CredentialNode<any, ImportedWitness<Input>>): Node<Input> {
   assert(
     credentialType === 'imported',
     '`publicInput` is only available on imported credentials'
@@ -530,17 +522,17 @@ function publicInput<Input>({
   return { type: 'publicInput', credentialKey };
 }
 
-type WitnessAny = WitnessNative | WitnessImported | undefined;
+type WitnessAny = NativeWitness | ImportedWitness | undefined;
 
 type CredentialOutput<Data = any, Witness extends WitnessAny = WitnessAny> = {
-  credential: Credential<Data>;
+  data: Data;
   issuer: Field;
   witness: Witness;
 };
-type CredentialOutputNative<Data = any> = CredentialOutput<Data, WitnessNative>;
+type CredentialOutputNative<Data = any> = CredentialOutput<Data, NativeWitness>;
 type CredentialOutputImported<Data = any> = CredentialOutput<
   Data,
-  WitnessImported
+  ImportedWitness
 >;
 
 type CredentialNodeType =
@@ -551,7 +543,7 @@ type CredentialNodeType =
   | 'publicInput';
 
 function assertCredential<Data>(
-  root: object,
+  root: RootValue,
   credential: Node<Data> & { type: CredentialNodeType }
 ) {
   assertHasProperty(root, credential.credentialKey);
@@ -567,7 +559,7 @@ function assertCredentialType<Data>(
 }
 
 function assertNativeCredential<Data>(
-  root: object,
+  root: RootValue,
   credential: Node<Data> & { type: CredentialNodeType }
 ) {
   let cred = assertCredential(root, credential);
@@ -576,7 +568,7 @@ function assertNativeCredential<Data>(
 }
 
 function assertImportedCredential<Data>(
-  root: object,
+  root: RootValue,
   credential: Node<Data> & { type: CredentialNodeType }
 ) {
   let cred = assertCredential(root, credential);
