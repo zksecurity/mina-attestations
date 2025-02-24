@@ -1,4 +1,4 @@
-import { Bytes, type ProvableHashable, UInt8 } from 'o1js';
+import { Bytes, Field, type ProvableHashable, UInt8 } from 'o1js';
 import {
   DynamicArray,
   DynamicArrayBase,
@@ -71,10 +71,12 @@ function DynamicBytes({
       return provableBytes;
     }
 
-    static fromBytes(bytes: Uint8Array | (number | bigint | UInt8)[] | Bytes) {
+    static fromBytes(bytes: Uint8Array | (number | UInt8)[] | Bytes) {
+      if (bytes instanceof Uint8Array) return provableBytes.fromValue(bytes);
       if (bytes instanceof Bytes.Base) bytes = bytes.bytes;
-      return provableBytes.fromValue(
-        [...bytes].map((t) => UInt8.from(t)) as any
+      return new DynamicBytes_(
+        bytes.map((t) => UInt8.from(t)),
+        Field(bytes.length)
       );
     }
 
@@ -119,13 +121,13 @@ DynamicBytes.fromBytes = function (bytes: Uint8Array) {
 };
 
 DynamicBytes.from = function (
-  input: DynamicArray<UInt8> | Uint8Array | string
+  input: DynamicArray<UInt8> | Uint8Array | string | (number | UInt8)[]
 ): DynamicBytes {
   if (typeof input === 'string') {
     let Bytes = DynamicBytes({ maxLength: stringLength(input) });
     return Bytes.fromString(input);
   }
-  if (input instanceof Uint8Array) {
+  if (input instanceof Uint8Array || Array.isArray(input)) {
     let Bytes = DynamicBytes({ maxLength: input.length });
     return Bytes.fromBytes(input);
   }
