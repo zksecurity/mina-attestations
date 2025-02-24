@@ -1,6 +1,6 @@
 export { DynamicArray } from './dynamic/dynamic-array.ts';
 export { StaticArray } from './dynamic/static-array.ts';
-export { DynamicBytes } from './dynamic/dynamic-bytes.ts';
+export { DynamicBytes, DynamicBytesBase } from './dynamic/dynamic-bytes.ts';
 export { DynamicString } from './dynamic/dynamic-string.ts';
 export { DynamicRecord } from './dynamic/dynamic-record.ts';
 export {
