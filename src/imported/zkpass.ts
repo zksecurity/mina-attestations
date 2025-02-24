@@ -19,6 +19,7 @@ export { ZkPass, type ZkPassResponseItem };
 const { Signature, Address } = EcdsaEthereum;
 
 const maxMessageLength = 128;
+const Message = DynamicBytes({ maxLength: maxMessageLength });
 
 /**
  * Utilities to help process zkpass responses.
@@ -30,14 +31,14 @@ const ZkPass = {
 
   CredentialPartial() {
     let cred = ecdsaCredentialsZkPassPartial.get(maxMessageLength);
-    cred ??= createCredentialZkPassPartial({ maxMessageLength });
+    cred ??= createCredentialZkPassPartial();
     ecdsaCredentialsZkPassPartial.set(maxMessageLength, cred);
     return cred;
   },
 
   CredentialFull() {
     let cred = ecdsaCredentialsZkPassFull.get(maxMessageLength);
-    cred ??= createCredentialZkPassFull({ maxMessageLength });
+    cred ??= createCredentialZkPassFull();
     ecdsaCredentialsZkPassFull.set(maxMessageLength, cred);
     return cred;
   },
@@ -117,10 +118,8 @@ async function importCredentialPartial(
     parseSignature(response.allocatorSignature);
   let allocatorAddress = ByteUtils.fromHex(response.allocatorAddress);
 
-  const maxMessageLength = 128;
-
   log('Compiling ZkPass credential...');
-  await EcdsaEthereum.compileDependencies({ maxMessageLength });
+  await ZkPass.compileDependenciesPartial();
 
   let ZkPassCredential = await ZkPass.CredentialPartial();
 
@@ -144,9 +143,7 @@ async function importCredentialPartial(
   return credential;
 }
 
-function createCredentialZkPassPartial(options: { maxMessageLength: number }) {
-  let { maxMessageLength } = options;
-  const Message = DynamicBytes({ maxLength: maxMessageLength });
+function createCredentialZkPassPartial() {
   return Credential.Imported.fromMethod(
     {
       name: `ecdsa-partial-${maxMessageLength}`,
@@ -260,9 +257,7 @@ async function importCredentialFull(
 
 // Verifies both validator and allocator signatures
 // TODO: OOM
-function createCredentialZkPassFull(options: { maxMessageLength: number }) {
-  let { maxMessageLength } = options;
-  const Message = DynamicBytes({ maxLength: maxMessageLength });
+function createCredentialZkPassFull() {
   return Credential.Imported.fromMethod(
     {
       name: `ecdsa-full-${maxMessageLength}`,
