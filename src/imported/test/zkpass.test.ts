@@ -1,26 +1,12 @@
 import { assert, ByteUtils } from '../../util.ts';
-import {
-  EcdsaEthereum,
-  getHashHelper,
-  parseSignature,
-} from '../ecdsa-credential.ts';
+import { EcdsaEthereum, parseSignature } from '../ecdsa-credential.ts';
 import { owner } from '../../../tests/test-utils.ts';
 import { PublicKey } from 'o1js';
 import { ZkPass, type ZkPassResponseItem } from '../zkpass.ts';
 import { Credential } from '../../credential-index.ts';
 
-const maxMessageLength = 128;
-
-console.time('hash helper constraints');
-let { short: shortCs } = await getHashHelper(maxMessageLength).analyzeMethods();
-console.log(shortCs.summary());
-console.timeEnd('hash helper constraints');
-
 console.time('compile dependencies');
-await EcdsaEthereum.compileDependencies({
-  maxMessageLength,
-  proofsEnabled: true,
-});
+await ZkPass.compileDependenciesPartial({ proofsEnabled: true });
 console.timeEnd('compile dependencies');
 
 console.time('zkpass create credential');
