@@ -23,7 +23,7 @@ import {
   type CredentialSpec,
   type StoredCredential,
 } from './credential.ts';
-import { assert, isSubclass, zip } from './util.ts';
+import { assert, zip } from './util.ts';
 import { generateContext, computeContext } from './context.ts';
 import { NestedProvable } from './nested.ts';
 import {
@@ -38,7 +38,6 @@ import {
   serializeNestedProvableValue,
   serializeProvable,
 } from './serialize-provable.ts';
-import { DynamicRecord } from './dynamic/dynamic-record.ts';
 import { PresentationRequestSchema } from './validation.ts';
 
 // external API
@@ -344,19 +343,6 @@ async function preparePresentation<R extends PresentationRequest>({
     vkHash: compiled.verificationKey.hash,
     claims: hashClaims(request.claims),
   });
-
-  // TODO do we need this step?
-  // credentialsAndSpecs = credentialsAndSpecs.map((credentialAndSpec) => {
-  //   // if the credential uses a subschema, we have to wrap it inside DynamicRecord
-  //   if (isSubclass(credentialAndSpec.spec.data, DynamicRecord.Base)) {
-  //     let { owner, data } = credentialAndSpec.credential;
-  //     credentialAndSpec.credential = {
-  //       owner,
-  //       data: credentialAndSpec.spec.data.from(data),
-  //     };
-  //   }
-  //   return credentialAndSpec;
-  // });
 
   // prepare fields to sign
   let credHashes = credentialsAndSpecs.map(({ credential }) =>
