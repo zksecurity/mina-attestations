@@ -151,7 +151,7 @@ function verifyPublicInput(publicInput: {
   let allocatorMessage = DynamicBytes.from([
     ...publicInput.taskId.bytes,
     ...publicInput.schema.bytes,
-    ...fill(12, 0), // 12 zero bytes to fill up address
+    ...fill(12, 0x00), // 12 zero bytes to fill up address
     ...publicInput.validatorAddress.bytes,
   ]);
 
@@ -181,7 +181,7 @@ function createCredentialZkPassPartial() {
         validatorSignature: Signature,
         validatorParityBit: Unconstrained.withEmpty(false),
       },
-      data: { validatorMessage: Message },
+      data: { nullifier: Bytes32, publicFieldsHash: Bytes32 },
     },
     async ({
       publicInput: { schema, taskId, validatorAddress },
@@ -192,7 +192,7 @@ function createCredentialZkPassPartial() {
         validatorParityBit,
       },
     }) => {
-      // combine validator message
+      // combine inputs to validator message
       let validatorMessage = DynamicBytes.from([
         ...taskId.bytes,
         ...schema.bytes,
@@ -209,12 +209,12 @@ function createCredentialZkPassPartial() {
         maxMessageLength
       );
 
-      return { validatorMessage };
+      return { nullifier: uHash, publicFieldsHash };
     }
   );
 }
 
-// New version - verifies both validator and allocator signatures
+// Verifies both validator and allocator signatures
 async function importCredentialFull(
   owner: PublicKey,
   schema: string,

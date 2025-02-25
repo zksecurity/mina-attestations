@@ -143,7 +143,7 @@ async function verifyEthereumSignature(
 }
 
 /**
- * Non-recursive e2e signature verification, for benchmarking and testing.
+ * Non-recursive e2e signature verification, for benchmarking and testing and using outside circuits.
  *
  * Note: this is not provable due to the circuit limit, use the recursive version for that.
  */
