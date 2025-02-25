@@ -4,14 +4,28 @@ import {
   Presentation,
   PresentationRequest,
   Spec,
+  Claim,
+  hashDynamic,
 } from '../../../src/index.ts';
 import { ORIGIN, SERVER_ID } from './config.ts';
 import { queuePromise } from './async-queue.ts';
 import { ZkPass } from '../../../src/imported.ts';
+import { Field } from 'o1js';
+import { Nullifier } from './nullifier-store.ts';
 
 export { requestZkPassVerification, verifyZkPass };
 
 const ACTION_ID = `${SERVER_ID}:zkpass-verification`;
+
+// zkpass schema id, which specifies what web interaction the user had to perform
+const schemaIdDev = '3ec11dea72464d729f76a7d42b7e98b8';
+const schemaIdProd = '319ef6c9e03e47b38fb24420a1f2060c';
+const isDev = ORIGIN === 'http://localhost:5173';
+const SCHEMA_ID = isDev ? schemaIdDev : schemaIdProd;
+
+// zkpass master public key that attests to their validators
+// expected to be stable, did not rotate so far
+const ALLOCATOR_ADDRESS = '19a567b3b212a5b35ba0e3b600fbed5c2ee9083d';
 
 await queuePromise(() => ZkPass.compileDependenciesPartial());
 const zkPassCredential = await queuePromise(() => ZkPass.CredentialPartial());
@@ -23,16 +37,23 @@ console.log('vk.hash:', vk.hash.toJSON());
 const verificationSpec = Spec(
   {
     credential: zkPassCredential.spec,
+
+    // TODO we should have `Operation.action()` to get the `action` that was used for `context`
+    actionId: Claim(Field),
   },
-  ({ credential }) => {
+  ({ credential, actionId }) => {
     return {
-      assert: [
-        Operation.equals(
-          Operation.verificationKeyHash(credential),
-          Operation.constant(vk.hash)
+      assert: Operation.equals(
+        Operation.verificationKeyHash(credential),
+        Operation.constant(vk.hash)
+      ),
+      outputClaim: Operation.record({
+        zkpassInput: Operation.publicInput(credential),
+        nullifier: Operation.hash(
+          Operation.property(credential, 'nullifier'),
+          actionId
         ),
-      ],
-      outputClaim: Operation.publicInput(credential),
+      }),
     };
   }
 );
@@ -52,7 +73,7 @@ async function createRequest() {
 
   let request = PresentationRequest.httpsFromCompiled(
     compiled,
-    {},
+    { actionId: hashDynamic(ACTION_ID) },
     { action: ACTION_ID }
   );
   openRequests.set(request.inputContext.serverNonce.toString(), request as any);
@@ -67,30 +88,38 @@ async function requestZkPassVerification() {
 }
 
 async function verifyZkPass(presentationJson: string) {
-  try {
-    let presentation = Presentation.fromJSON(presentationJson);
-    let nonce = presentation.serverNonce.toString();
-    let request = openRequests.get(nonce);
-    if (!request) throw Error('Unknown presentation');
+  let presentation = Presentation.fromJSON(presentationJson);
+  let nonce = presentation.serverNonce.toString();
+  let request = openRequests.get(nonce);
+  if (!request) throw Error('Unknown presentation');
 
-    let output = await Presentation.verify(request, presentation, {
-      verifierIdentity: ORIGIN,
-    });
+  let { zkpassInput, nullifier } = await Presentation.verify(
+    request,
+    presentation,
+    { verifierIdentity: ORIGIN }
+  );
 
-    // Check allocator address
-    const allocatorAddress =
-      '19a567b3b212a5b35bA0E3B600FbEd5c2eE9083d'.toLowerCase();
-    // Validator address can change based on who's selected by the allocator
-    // const validatorAddressExample = '0xb1C4C1E1Cdd5Cf69E27A3A08C8f51145c2E12C6a';
+  // assert that allocator signature is valid
+  ZkPass.verifyPublicInput(zkpassInput);
 
-    assert(allocatorAddress === output.allocatorAddress.toHex());
+  // check schema id
+  assert(zkpassInput.schema.toHex() === SCHEMA_ID, 'invalid schema id');
 
-    // check allocator signature
-    ZkPass.verifyPublicInput(output);
+  // check allocator address
+  assert(
+    zkpassInput.allocatorAddress.toHex() === ALLOCATOR_ADDRESS,
+    'invalid allocator address'
+  );
 
-    openRequests.delete(nonce);
-  } catch (error: any) {
-    console.error('Error verifying zkPass:', error);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  // we could also require that the nullifier is only used once at this point
+  // but that wouldn't make sense in the current example because there's no "action" associated to calling this endpoint
+  // also, the use of nullifiers in this example is not safe because the nullifiers are pruned once in a while even though credentials never expire
+  if (Nullifier.exists(nullifier)) {
+    console.log('Nullifier already used:', nullifier);
+  } else {
+    console.log('New nullifier:', nullifier);
   }
+  Nullifier.add(nullifier);
+
+  openRequests.delete(nonce);
 }

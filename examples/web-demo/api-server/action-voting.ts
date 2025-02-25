@@ -67,7 +67,7 @@ const votingSpec = Spec(
     let birthDate = Operation.property(credential, 'birthDate');
 
     return {
-      assert: Operation.and(
+      assert: [
         // - the credential issuer matches the expected (public) input, i.e. this server
         Operation.equals(issuer, expectedIssuer),
 
@@ -78,8 +78,8 @@ const votingSpec = Spec(
         Operation.not(Operation.equals(nationality, unitedStates)),
 
         // - the user is older than 18 years (by comparing with the current date)
-        Operation.lessThan(Operation.add(birthDate, eighteenYears), createdAt)
-      ),
+        Operation.lessThan(Operation.add(birthDate, eighteenYears), createdAt),
+      ],
 
       // return a nullifier
       // this won't reveal the data because our Schema with the `id` field has enough entropy
