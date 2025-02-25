@@ -122,7 +122,7 @@ async function verifyEthereumSignature(
   parityBit: Unconstrained<boolean>,
   maxMessageLength: number
 ) {
-  // in a recursive call, hash the message and extract the public key
+  // in a recursive call, hash the message
   const hashHelper = getHashHelper(maxMessageLength);
   const hashHelperRecursive = Experimental.Recursive(hashHelper);
   let messageHash = await hashHelperRecursive.short(message);
