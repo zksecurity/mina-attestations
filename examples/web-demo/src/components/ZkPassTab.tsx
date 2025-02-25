@@ -8,7 +8,7 @@ import {
   importZkpassProof,
   defaultAppId,
 } from '../interactions/import-credential';
-import { useToast } from './ui/toast';
+import { CopyableCode } from './ui/copyable-code';
 
 const ZkPassTab: React.FC<{ useMockWallet: boolean }> = ({ useMockWallet }) => {
   const [appId, setAppId] = useState<string>(defaultAppId);
@@ -21,7 +21,7 @@ const ZkPassTab: React.FC<{ useMockWallet: boolean }> = ({ useMockWallet }) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<string | undefined>(undefined);
   const [isLoading2, setIsLoading2] = useState<string | undefined>(undefined);
-  const { toast } = useToast();
+  const [credential, setCredential] = useState<string | null>(null);
 
   const start = async () => {
     try {
@@ -75,13 +75,13 @@ const ZkPassTab: React.FC<{ useMockWallet: boolean }> = ({ useMockWallet }) => {
   ) {
     try {
       setIsLoading2('Preparing import...');
-      await importZkpassProof(schemaId, result, useMockWallet, setIsLoading2);
-      // show success toast
-      toast({
-        title: 'Success',
-        description: 'Credential imported',
-        className: 'bg-green-50 border border-green-200 text-green-800',
-      });
+      let credential = await importZkpassProof(
+        schemaId,
+        result,
+        useMockWallet,
+        setIsLoading2
+      );
+      setCredential(credential);
     } catch (err) {
       console.error(err);
       setError(
@@ -157,6 +157,12 @@ const ZkPassTab: React.FC<{ useMockWallet: boolean }> = ({ useMockWallet }) => {
           >
             {isLoading2 ?? 'Import as Credential'}
           </button>
+        </div>
+      )}
+
+      {credential && (
+        <div className="mt-6">
+          <CopyableCode value={credential} label="Imported Credential" />
         </div>
       )}
     </div>

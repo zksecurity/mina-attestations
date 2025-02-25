@@ -59,5 +59,5 @@ async function importZkpassProof(
   console.log('importZkpassProof vkHash:', credential.witness.vk.hash.toJSON());
 
   let json = Credential.toJSON(credential);
-  await storeCredential(useMockWallet, json);
+  return json;
 }

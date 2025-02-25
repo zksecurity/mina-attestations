@@ -314,7 +314,7 @@ const App: React.FC = () => {
                   Anonymous Poll
                 </TabsTrigger>
                 <TabsTrigger value="zkpass" className="flex-1 min-w-[120px]">
-                  ZkPass Integration
+                  ZkPass Credential
                 </TabsTrigger>
                 <TabsTrigger
                   value="verify-zkpass"
