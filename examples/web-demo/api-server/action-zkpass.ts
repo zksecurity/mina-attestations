@@ -101,24 +101,21 @@ async function verifyZkPass(presentationJson: string) {
   );
 
   // assert that allocator signature is valid
-  ZkPass.verifyPublicInput(zkpassInput);
+  let { schema, allocatorAddress } = ZkPass.verifyPublicInput(zkpassInput);
 
   // check schema id
-  assert(zkpassInput.schema.toHex() === SCHEMA_ID, 'invalid schema id');
+  assert(schema === SCHEMA_ID, 'invalid schema id');
 
   // check allocator address
-  assert(
-    zkpassInput.allocatorAddress.toHex() === ALLOCATOR_ADDRESS,
-    'invalid allocator address'
-  );
+  assert(allocatorAddress === ALLOCATOR_ADDRESS, 'invalid allocator address');
 
   // we could also require that the nullifier is only used once at this point
   // but that wouldn't make sense in the current example because there's no "action" associated to calling this endpoint
   // also, the use of nullifiers in this example is not safe because the nullifiers are pruned once in a while even though credentials never expire
   if (Nullifier.exists(nullifier)) {
-    console.log('Nullifier already used:', nullifier);
+    console.log('Nullifier already used:', nullifier.toBigInt());
   } else {
-    console.log('New nullifier:', nullifier);
+    console.log('New nullifier:', nullifier.toBigInt());
   }
   Nullifier.add(nullifier);
 

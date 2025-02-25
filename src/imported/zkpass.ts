@@ -137,6 +137,9 @@ type Field3 = [Field, Field, Field];
 /**
  * Verify the public input of a partial zkpass credential.
  *
+ * Returns the allocator address and schema id for further verification against
+ * expected values.
+ *
  * This is a verification step that can be done in the clear, and is
  * outsourced from the proof to the verifier.
  */
@@ -161,6 +164,11 @@ function verifyPublicInput(publicInput: {
     publicInput.allocatorAddress,
     Unconstrained.from(publicInput.allocatorParityBit.toBoolean())
   );
+
+  return {
+    allocatorAddress: publicInput.allocatorAddress.toHex(),
+    schema: ByteUtils.toString(publicInput.schema.toBytes()),
+  };
 }
 
 function createCredentialZkPassPartial() {
