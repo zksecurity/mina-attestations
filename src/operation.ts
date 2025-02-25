@@ -1,4 +1,13 @@
-import { Bool, UInt8, UInt32, UInt64, Field, Provable, PublicKey } from 'o1js';
+import {
+  Bool,
+  UInt8,
+  UInt32,
+  UInt64,
+  Field,
+  Provable,
+  PublicKey,
+  Int64,
+} from 'o1js';
 import { ProvableType } from './o1js-missing.ts';
 import { assert, assertHasProperty } from './util.ts';
 import { NestedProvable } from './nested.ts';
@@ -9,6 +18,7 @@ import type { Input, RootValue, RootType } from './program-spec.ts';
 import type { CredentialSpec, CredentialType } from './credential.ts';
 import type { NativeWitness } from './credential-native.ts';
 import { Imported, type ImportedWitness } from './credential-imported.ts';
+import { lessThanInt64, lessThanOrEqualInt64 } from './dynamic/gadgets.ts';
 
 export { Node, Operation };
 export { type CredentialNode, type InputToNode, root };
@@ -243,37 +253,65 @@ function compareNodes(
 
   const [leftConverted, rightConverted] = convertNodes(left, right);
 
+  if (leftConverted instanceof Int64) {
+    return allowEqual
+      ? lessThanOrEqualInt64(leftConverted, rightConverted as Int64)
+      : lessThanInt64(leftConverted, rightConverted as Int64);
+  }
   return allowEqual
     ? leftConverted.lessThanOrEqual(rightConverted as any)
     : leftConverted.lessThan(rightConverted as any);
 }
 
-function convertNodes(left: any, right: any): [NumericType, NumericType] {
+function convertNodes(
+  left: NumericType,
+  right: NumericType
+): [NumericType, NumericType] {
   const leftTypeIndex = numericTypeOrder.findIndex(
     (type) => left instanceof type
   );
   const rightTypeIndex = numericTypeOrder.findIndex(
     (type) => right instanceof type
   );
+  assert(leftTypeIndex !== -1, 'left is not a numeric type');
+  assert(rightTypeIndex !== -1, 'right is not a numeric type');
+  let leftType = numericTypeOrder[leftTypeIndex];
+  let rightType = numericTypeOrder[rightTypeIndex];
 
   const resultType = numericTypeOrder[Math.max(leftTypeIndex, rightTypeIndex)];
 
   const leftConverted =
     leftTypeIndex < rightTypeIndex
       ? resultType === Field
-        ? left.toField()
+        ? leftType === Int64
+          ? (left as Int64).toField()
+          : (leftType as typeof UInt64 | typeof UInt32 | typeof UInt8).toFields(
+              left as UInt64 | UInt32 | UInt8
+            )[0]!
+        : resultType === Int64
+        ? leftType === UInt64
+          ? Int64.fromUnsigned(left as UInt64)
+          : Int64.fromUnsigned((left as UInt32 | UInt8).toUInt64())
         : resultType === UInt64
-        ? left.toUInt64()
-        : left.toUInt32()
+        ? (left as UInt32 | UInt8).toUInt64()
+        : (left as UInt8).toUInt32()
       : left;
 
   const rightConverted =
     leftTypeIndex > rightTypeIndex
       ? resultType === Field
-        ? right.toField()
+        ? rightType === Int64
+          ? (right as Int64).toField()
+          : (
+              rightType as typeof UInt64 | typeof UInt32 | typeof UInt8
+            ).toFields(right as UInt64 | UInt32 | UInt8)[0]!
+        : resultType === Int64
+        ? rightType === UInt64
+          ? Int64.fromUnsigned(right as UInt64)
+          : Int64.fromUnsigned((right as UInt32 | UInt8).toUInt64())
         : resultType === UInt64
-        ? right.toUInt64()
-        : right.toUInt32()
+        ? (right as UInt32 | UInt8).toUInt64()
+        : (right as UInt8).toUInt32()
       : right;
 
   return [leftConverted, rightConverted];
@@ -393,9 +431,9 @@ function equalsOneOf<Data>(
   return { type: 'equalsOneOf', input, options };
 }
 
-type NumericType = Field | UInt64 | UInt32 | UInt8;
+type NumericType = Field | UInt64 | UInt32 | UInt8 | Int64;
 
-const numericTypeOrder = [UInt8, UInt32, UInt64, Field];
+const numericTypeOrder = [UInt8, UInt32, UInt64, Int64, Field];
 
 function lessThan<Left extends NumericType, Right extends NumericType>(
   left: Node<Left>,
