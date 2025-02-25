@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useToast } from './ui/toast';
-import { verifyRequest } from '../interactions/verify-zkpass';
+import { verifyZkpassRequest } from '../interactions/presentation-request';
 
 const VerifyZkPassTab = ({ useMockWallet }: { useMockWallet: boolean }) => {
   const [isLoading, setIsLoading] = useState<string | undefined>(undefined);
@@ -12,7 +12,7 @@ const VerifyZkPassTab = ({ useMockWallet }: { useMockWallet: boolean }) => {
     setError(null);
 
     try {
-      await verifyRequest(useMockWallet, setIsLoading);
+      await verifyZkpassRequest(useMockWallet, setIsLoading);
 
       toast({
         title: 'Success',
