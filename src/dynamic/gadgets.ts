@@ -5,7 +5,9 @@ import {
   Bool,
   Field,
   Gadgets,
+  Int64,
   Provable,
+  Sign,
   TupleN,
   UInt32,
   UInt64,
@@ -26,6 +28,8 @@ export {
   assertInRange16,
   assertLessThan16,
   rangeCheck,
+  lessThanInt64,
+  lessThanOrEqualInt64,
 };
 
 /**
@@ -216,4 +220,49 @@ function rangeCheckLessThan16(bits: number, x: Field) {
   // check that 2^(16 - bits)*x < 2^16, i.e. x < 2^bits
   let xM = x.mul(1 << (16 - bits)).seal();
   Gadgets.rangeCheck16(xM);
+}
+
+// Int64 comparisons
+
+function lessThanInt64(left: Int64, right: Int64): Bool {
+  let magnitudeLessThan = left.magnitude.lessThan(right.magnitude);
+  let magnitudeEqual = left.magnitude.equals(right.magnitude);
+  let magnitudeGreaterThan = magnitudeLessThan.not().and(magnitudeEqual.not());
+  let unequalSign = left.sgn.mul(right.sgn).equals(Sign.minusOne);
+  let leftNegative = left.sgn.equals(Sign.minusOne);
+  return Provable.if(
+    unequalSign,
+    // if the signs are unequal, left < right <=> left < 0
+    // (this works because sign == -1 guarantees magnitude != 0)
+    leftNegative,
+    // if the signs are equal, and
+    // negative: left < right <=> left.magnitude > right.magnitude
+    // positive: left < right <=> left.magnitude < right.magnitude
+    Provable.if(leftNegative, magnitudeGreaterThan, magnitudeLessThan)
+  );
+}
+
+function lessThanOrEqualInt64(left: Int64, right: Int64): Bool {
+  let magnitudeLessThanOrEqual = left.magnitude.lessThanOrEqual(
+    right.magnitude
+  );
+  let magnitudeEqual = left.magnitude.equals(right.magnitude);
+  let magnitudeGreaterThanOrEqual = magnitudeLessThanOrEqual
+    .not()
+    .or(magnitudeEqual);
+  let unequalSign = left.sgn.mul(right.sgn).equals(Sign.minusOne);
+  let leftNegative = left.sgn.equals(Sign.minusOne);
+  return Provable.if(
+    unequalSign,
+    // if the signs are unequal, left <= right <=> left < 0
+    leftNegative,
+    // if the signs are equal, and
+    // negative: left <= right <=> left.magnitude >= right.magnitude
+    // positive: left <= right <=> left.magnitude <= right.magnitude
+    Provable.if(
+      leftNegative,
+      magnitudeGreaterThanOrEqual,
+      magnitudeLessThanOrEqual
+    )
+  );
 }
