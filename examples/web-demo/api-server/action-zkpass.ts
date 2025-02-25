@@ -21,7 +21,8 @@ const ACTION_ID = `${SERVER_ID}:zkpass-verification`;
 const schemaIdDev = '3ec11dea72464d729f76a7d42b7e98b8';
 const schemaIdProd = '319ef6c9e03e47b38fb24420a1f2060c';
 const isDev = ORIGIN === 'http://localhost:5173';
-const SCHEMA_ID = isDev ? schemaIdDev : schemaIdProd;
+// const SCHEMA_ID = isDev ? schemaIdDev : schemaIdProd;
+const SCHEMA_ID = schemaIdDev; // TODO: currently always assume dev schema because it matches the "example proof" and zkpass flow is not reliably working
 
 // zkpass master public key that attests to their validators
 // expected to be stable, did not rotate so far
