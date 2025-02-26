@@ -1,12 +1,3 @@
-/**
- * Arithmetic and comparison gadgets that work on all pairs of numeric types:
- * Field, Int64, UInt64, UInt32, and UInt8.
- *
- * Example: check if a UInt64 is less than a Field, or compute the sum of a UInt32 and an Int64 (as an Int64).
- *
- * The general strategy is to convert both inputs to the "bigger" type, and then perform the operation there.
- * We also add int64 comparisons which are missing from o1js.
- */
 import {
   Bool,
   Field,
@@ -38,6 +29,15 @@ type NumericMaximum<T> =
   UInt8 extends T ? UInt8 :
   never;
 
+/**
+ * Arithmetic and comparison gadgets that work on all pairs of numeric types:
+ * Field, Int64, UInt64, UInt32, and UInt8.
+ *
+ * Example: check if a UInt64 is less than a Field, or compute the sum of a UInt32 and an Int64 (as an Int64).
+ *
+ * The general strategy is to convert both inputs to the "bigger" type, and then perform the operation there.
+ * We also add int64 comparisons which are missing from o1js.
+ */
 const Numeric = {
   /**
    * Add two numeric values.
