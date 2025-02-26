@@ -59,52 +59,10 @@ Zero-knowledge proofs are implemented using [o1js](https://github.com/o1-labs/o1
 
 The remainder of this README contains documentation aimed at developers, starting from high-level examples and concepts and then moving to detailed API docs.
 
-- [Mina Attestations   ](#mina-attestations--)
-  - [What are private attestations? 🧑‍🎓](#what-are-private-attestations-)
-  - [Features 💫](#features-)
-  - [Documentation](#documentation)
-  - [Code example: Defining a private attestation ](#code-example-defining-a-private-attestation-)
-    - [From spec to presentation request](#from-spec-to-presentation-request)
-  - [What credentials are supported? ](#what-credentials-are-supported-)
-    - [Why not do everything in one proof?](#why-not-do-everything-in-one-proof)
-    - [What imported credentials are available now?](#what-imported-credentials-are-available-now)
-  - [API](#api)
-    - [Data types](#data-types)
-    - [`CredentialSpec`](#credentialspec)
-      - [Native Credential example](#native-credential-example)
-      - [Imported Credential example](#imported-credential-example)
-      - [Unsigned Credential example](#unsigned-credential-example)
-    - [`StoredCredential`](#storedcredential)
-      - [Credential types](#credential-types)
-    - [`Credential`](#credential)
-      - [Credential example](#credential-example)
-    - [Creating credentials](#creating-credentials)
-      - [Native Credential](#native-credential)
-      - [Unsigned Credential](#unsigned-credential)
-      - [Imported Credential](#imported-credential)
-    - [Defining presentation logic](#defining-presentation-logic)
-      - [`Spec`](#spec)
-      - [`Operation`](#operation)
-      - [Optional Logic in Specs](#optional-logic-in-specs)
-    - [Requesting presentations](#requesting-presentations)
-      - [Creating requests](#creating-requests)
-      - [Context](#context)
-        - [HTTPS Context](#https-context)
-        - [zkApp Context](#zkapp-context)
-        - [Context Derivation](#context-derivation)
-      - [Serialization](#serialization)
-      - [Examples](#examples)
-    - [Creating presentations](#creating-presentations)
-      - [Precompilation and Compilation](#precompilation-and-compilation)
-      - [Creating a Presentation](#creating-a-presentation)
-      - [Serialization](#serialization-1)
-      - [Credential matching](#credential-matching)
-      - [Full Example](#full-example)
-    - [Verifying presentations](#verifying-presentations)
-    - [Defining new imported credentials](#defining-new-imported-credentials)
-  - [Bonus: `mina-attestations/dynamic`](#bonus-mina-attestationsdynamic)
-  - [Acknowledgement](#acknowledgement)
-  - [License](#license)
+- [Code example: Defining a private attestation ](#operations-dsl)
+- [What credentials are supported? ](#credential-kinds)
+- [API](#api)
+- [Bonus: `mina-attestations/dynamic`](#bonus-mina-attestationsdynamic)
 
 Apart from reading the docs, have a look at our full code examples:
 
@@ -274,18 +232,47 @@ import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
 
 ## API
 
+Table of contents:
+
+- [Data types](#data-types)
+  - [`CredentialSpec`](#credentialspec)
+  - [Native Credential example](#native-credential-example)
+  - [Imported Credential example](#imported-credential-example)
+  - [Unsigned Credential example](#unsigned-credential-example)
+  - [`StoredCredential`](#storedcredential)
+  - [Credential types](#credential-types)
+  - [`Credential`](#credential)
+  - [Credential example](#credential-example)
+- [Creating credentials](#creating-credentials)
+  - [Native Credential](#native-credential)
+  - [Unsigned Credential](#unsigned-credential)
+  - [Imported Credential](#imported-credential)
+- [Defining presentation logic](#defining-presentation-logic)
+  - [`Spec`](#spec)
+  - [`Operation`](#operation)
+  - [Optional Logic in Specs](#optional-logic-in-specs)
+- [Requesting presentations](#requesting-presentations)
+  - [Creating requests](#creating-requests)
+  - [Context](#context)
+    - [HTTPS Context](#https-context)
+    - [zkApp Context](#zkapp-context)
+    - [Context Derivation](#context-derivation)
+  - [Serialization](#serialization)
+  - [Examples](#examples)
+- [Creating presentations](#creating-presentations)
+  - [Precompilation and Compilation](#precompilation-and-compilation)
+  - [Creating a Presentation](#creating-a-presentation)
+  - [Serialization](#serialization-1)
+  - [Credential matching](#credential-matching)
+  - [Full Example](#full-example)
+- [Verifying presentations](#verifying-presentations)
+- [Defining new imported credentials](#defining-new-imported-credentials)
+
 ### Data types
 
 <!-- highlight how to serialize every type -->
 
-- [`CredentialSpec`](#credentialspec)
-- [`StoredCredential`](#storedcredential)
-  - [`Credential`](#credential)
-- [`PresentationRequest`](#requesting-presentations)
-  - [`PresentationSpec`](#defining-presentation-logic)
-- [`Presentation`](#creating-presentations)
-
-### `CredentialSpec`
+#### `CredentialSpec`
 
 A `CredentialSpec` defines the structure and verification logic for a credential.
 
@@ -406,7 +393,7 @@ const unsignedCredential = Credential.unsigned({
 });
 ```
 
-### `StoredCredential`
+#### `StoredCredential`
 
 A `StoredCredential` represents a credential in its stored form, containing all necessary data for verification and usage in presentations.
 
@@ -461,7 +448,7 @@ type Imported<Data, Input> = StoredCredential<
 type Unsigned<Data> = StoredCredential<Data, undefined>;
 ```
 
-### `Credential`
+#### `Credential`
 
 The `Credential` namespace provides the main interface for working with credentials. It has the following static properties:
 
@@ -1869,6 +1856,8 @@ assert(acceptedIssuers.includes(output.issuer.toBigInt()), 'Invalid issuer');
 ```
 
 ### Defining new imported credentials
+
+See [imported credential example](#imported-credential-example) for an example.
 
 ## Bonus: `mina-attestations/dynamic`
 
