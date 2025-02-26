@@ -48,7 +48,7 @@ async function importZkpassProof(
   let owner = await getPublicKey(useMockWallet);
 
   console.time('zkpass credential');
-  let credential = await ZkPass.importCredential(
+  let credential = await ZkPass.importCredentialPartial(
     PublicKey.fromBase58(owner),
     schema,
     response,
@@ -56,6 +56,8 @@ async function importZkpassProof(
   );
   console.timeEnd('zkpass credential');
 
+  console.log('importZkpassProof vkHash:', credential.witness.vk.hash.toJSON());
+
   let json = Credential.toJSON(credential);
-  await storeCredential(useMockWallet, json);
+  return json;
 }

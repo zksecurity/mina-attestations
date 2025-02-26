@@ -439,15 +439,20 @@ const NativeWitnessSchema = z
   })
   .strict();
 
+const verificationKey = z
+  .object({ data: z.string(), hash: SerializedFieldSchema })
+  .strict()
+  .or(
+    z.object({
+      _type: z.literal('VerificationKey'),
+      value: z.object({ data: z.string(), hash: z.string() }),
+    })
+  );
+
 const ImportedWitnessSchema = z
   .object({
     type: z.literal('imported'),
-    vk: z
-      .object({
-        data: z.string(),
-        hash: SerializedFieldSchema,
-      })
-      .strict(),
+    vk: verificationKey,
     proof: z
       .object({
         _type: z.literal('Proof'),

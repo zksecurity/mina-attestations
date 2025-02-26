@@ -1,4 +1,4 @@
-import { Bool, UInt8, UInt32, UInt64, Field, Provable, PublicKey } from 'o1js';
+import { Bool, Field, Provable, PublicKey } from 'o1js';
 import { ProvableType } from './o1js-missing.ts';
 import { assert, assertHasProperty } from './util.ts';
 import { NestedProvable } from './nested.ts';
@@ -9,6 +9,11 @@ import type { Input, RootValue, RootType } from './program-spec.ts';
 import type { CredentialSpec, CredentialType } from './credential.ts';
 import type { NativeWitness } from './credential-native.ts';
 import { Imported, type ImportedWitness } from './credential-imported.ts';
+import {
+  Numeric,
+  type NumericMaximum,
+  numericMaximumType,
+} from './dynamic/gadgets-numeric.ts';
 
 export { Node, Operation };
 export { type CredentialNode, type InputToNode, root };
@@ -73,12 +78,12 @@ type Node<Data = any> =
       input: Node;
       options: Node[] | Node<any[]> | Node<DynamicArray>;
     }
-  | { type: 'lessThan'; left: Node<NumericType>; right: Node<NumericType> }
-  | { type: 'lessThanEq'; left: Node<NumericType>; right: Node<NumericType> }
-  | { type: 'add'; left: Node<NumericType>; right: Node<NumericType> }
-  | { type: 'sub'; left: Node<NumericType>; right: Node<NumericType> }
-  | { type: 'mul'; left: Node<NumericType>; right: Node<NumericType> }
-  | { type: 'div'; left: Node<NumericType>; right: Node<NumericType> }
+  | { type: 'lessThan'; left: Node<Numeric>; right: Node<Numeric> }
+  | { type: 'lessThanEq'; left: Node<Numeric>; right: Node<Numeric> }
+  | { type: 'add'; left: Node<Numeric>; right: Node<Numeric> }
+  | { type: 'sub'; left: Node<Numeric>; right: Node<Numeric> }
+  | { type: 'mul'; left: Node<Numeric>; right: Node<Numeric> }
+  | { type: 'div'; left: Node<Numeric>; right: Node<Numeric> }
   | { type: 'and'; inputs: Node<Bool>[] }
   | { type: 'or'; left: Node<Bool>; right: Node<Bool> }
   | { type: 'not'; inner: Node<Bool> }
@@ -167,14 +172,36 @@ function evalNode<Data>(root: RootValue, node: Node<Data>): Data {
       let bools = options.map((o) => Provable.equal(type, input, o));
       return bools.reduce(Bool.or) as Data;
     }
-    case 'lessThan':
-    case 'lessThanEq':
-      return compareNodes(root, node, node.type === 'lessThanEq') as Data;
-    case 'add':
-    case 'sub':
-    case 'mul':
-    case 'div':
-      return arithmeticOperation(root, node) as Data;
+    case 'lessThan': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.lessThan(left, right) as Data;
+    }
+    case 'lessThanEq': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.lessThanOrEqual(left, right) as Data;
+    }
+    case 'add': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.add(left, right) as Data;
+    }
+    case 'sub': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.subtract(left, right) as Data;
+    }
+    case 'mul': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.multiply(left, right) as Data;
+    }
+    case 'div': {
+      let left = evalNode(root, node.left);
+      let right = evalNode(root, node.right);
+      return Numeric.divide(left, right) as Data;
+    }
     case 'and': {
       let inputs = node.inputs.map((i) => evalNode(root, i));
       return inputs.reduce(Bool.and) as Data;
@@ -206,77 +233,6 @@ function evalNode<Data>(root: RootValue, node: Node<Data>): Data {
       return node.computation(...computationInputs);
     }
   }
-}
-
-function arithmeticOperation(
-  root: RootValue,
-  node: {
-    type: 'add' | 'sub' | 'mul' | 'div';
-    left: Node<NumericType>;
-    right: Node<NumericType>;
-  }
-): NumericType {
-  let left = evalNode(root, node.left);
-  let right = evalNode(root, node.right);
-
-  const [leftConverted, rightConverted] = convertNodes(left, right);
-
-  switch (node.type) {
-    case 'add':
-      return leftConverted.add(rightConverted as any);
-    case 'sub':
-      return leftConverted.sub(rightConverted as any);
-    case 'mul':
-      return leftConverted.mul(rightConverted as any);
-    case 'div':
-      return leftConverted.div(rightConverted as any);
-  }
-}
-
-function compareNodes(
-  root: RootValue,
-  node: { left: Node<any>; right: Node<any> },
-  allowEqual: boolean
-): Bool {
-  let left = evalNode(root, node.left);
-  let right = evalNode(root, node.right);
-
-  const [leftConverted, rightConverted] = convertNodes(left, right);
-
-  return allowEqual
-    ? leftConverted.lessThanOrEqual(rightConverted as any)
-    : leftConverted.lessThan(rightConverted as any);
-}
-
-function convertNodes(left: any, right: any): [NumericType, NumericType] {
-  const leftTypeIndex = numericTypeOrder.findIndex(
-    (type) => left instanceof type
-  );
-  const rightTypeIndex = numericTypeOrder.findIndex(
-    (type) => right instanceof type
-  );
-
-  const resultType = numericTypeOrder[Math.max(leftTypeIndex, rightTypeIndex)];
-
-  const leftConverted =
-    leftTypeIndex < rightTypeIndex
-      ? resultType === Field
-        ? left.toField()
-        : resultType === UInt64
-        ? left.toUInt64()
-        : left.toUInt32()
-      : left;
-
-  const rightConverted =
-    leftTypeIndex > rightTypeIndex
-      ? resultType === Field
-        ? right.toField()
-        : resultType === UInt64
-        ? right.toUInt64()
-        : right.toUInt32()
-      : right;
-
-  return [leftConverted, rightConverted];
 }
 
 function evalNodeType(rootType: RootType, node: Node): NestedProvable {
@@ -330,9 +286,12 @@ function evalNodeType(rootType: RootType, node: Node): NestedProvable {
     case 'sub':
     case 'mul':
     case 'div':
-      return ArithmeticOperationType(rootType, node);
+      let leftType = evalNodeType(rootType, node.left);
+      let rightType = evalNodeType(rootType, node.right);
+      return numericMaximumType(leftType, rightType);
     case 'ifThenElse':
-      return Node as any;
+      let thenType = evalNodeType(rootType, node.thenNode);
+      return thenType; // the two must be the same
     case 'record': {
       let result: Record<string, NestedProvable> = {};
       for (let key in node.data) {
@@ -344,19 +303,6 @@ function evalNodeType(rootType: RootType, node: Node): NestedProvable {
       return node.outputType;
     }
   }
-}
-
-function ArithmeticOperationType(
-  rootType: RootType,
-  node: { left: Node<NumericType>; right: Node<NumericType> }
-): NestedProvable {
-  const leftType = evalNodeType(rootType, node.left);
-  const rightType = evalNodeType(rootType, node.right);
-  const leftTypeIndex = numericTypeOrder.findIndex((type) => leftType === type);
-  const rightTypeIndex = numericTypeOrder.findIndex(
-    (type) => rightType === type
-  );
-  return numericTypeOrder[Math.max(leftTypeIndex, rightTypeIndex)] as any;
 }
 
 // Node constructors
@@ -393,49 +339,45 @@ function equalsOneOf<Data>(
   return { type: 'equalsOneOf', input, options };
 }
 
-type NumericType = Field | UInt64 | UInt32 | UInt8;
-
-const numericTypeOrder = [UInt8, UInt32, UInt64, Field];
-
-function lessThan<Left extends NumericType, Right extends NumericType>(
+function lessThan<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
 ): Node<Bool> {
   return { type: 'lessThan', left, right };
 }
 
-function lessThanEq<Left extends NumericType, Right extends NumericType>(
+function lessThanEq<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
 ): Node<Bool> {
   return { type: 'lessThanEq', left, right };
 }
 
-function add<Left extends NumericType, Right extends NumericType>(
+function add<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
-): Node<Left | Right> {
+): Node<NumericMaximum<Left | Right>> {
   return { type: 'add', left, right };
 }
 
-function sub<Left extends NumericType, Right extends NumericType>(
+function sub<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
-): Node<Left | Right> {
+): Node<NumericMaximum<Left | Right>> {
   return { type: 'sub', left, right };
 }
 
-function mul<Left extends NumericType, Right extends NumericType>(
+function mul<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
-): Node<Left | Right> {
+): Node<NumericMaximum<Left | Right>> {
   return { type: 'mul', left, right };
 }
 
-function div<Left extends NumericType, Right extends NumericType>(
+function div<Left extends Numeric, Right extends Numeric>(
   left: Node<Left>,
   right: Node<Right>
-): Node<Left | Right> {
+): Node<NumericMaximum<Left | Right>> {
   return { type: 'div', left, right };
 }
 

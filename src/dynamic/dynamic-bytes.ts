@@ -1,4 +1,4 @@
-import { Bool, Bytes, Field, type ProvableHashable, UInt8 } from 'o1js';
+import { Bytes, Field, type ProvableHashable, UInt8 } from 'o1js';
 import {
   DynamicArray,
   DynamicArrayBase,
@@ -7,8 +7,9 @@ import {
 import { ProvableFactory } from '../provable-factory.ts';
 import { assert, chunk, stringLength } from '../util.ts';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
+import type { ProvableHashablePure } from '../o1js-missing.ts';
 
-export { DynamicBytes };
+export { DynamicBytes, DynamicBytesBase };
 
 type DynamicBytes = DynamicBytesBase;
 
@@ -26,12 +27,43 @@ type DynamicBytes = DynamicBytesBase;
  * let uint8array = bytes2.toBytes();
  * ```
  */
-function DynamicBytes({ maxLength }: { maxLength: number }) {
+function DynamicBytes({
+  maxLength,
+}: {
+  maxLength: number;
+}): typeof DynamicBytesBase & {
+  /**
+   * Create DynamicBytes from a byte array in various forms.
+   *
+   * ```ts
+   * let bytes = Bytes.fromBytes([1, 2, 3]);
+   * ```
+   */
+  fromBytes(
+    bytes: Uint8Array | (number | bigint | UInt8)[] | Bytes
+  ): DynamicBytes;
+
+  /**
+   * Create DynamicBytes from a hex string.
+   *
+   * ```ts
+   * let bytes = Bytes.fromHex('010203');
+   * ```
+   */
+  fromHex(hex: string): DynamicBytes;
+
+  /**
+   * Create DynamicBytes from a string.
+   */
+  fromString(s: string): DynamicBytes;
+
+  provable: ProvableHashablePure<DynamicBytes, Uint8Array>;
+} {
   // assert maxLength bounds
   assert(maxLength >= 0, 'maxLength must be >= 0');
   assert(maxLength < 2 ** 16, 'maxLength must be < 2^16');
 
-  class DynamicBytes extends DynamicBytesBase {
+  class DynamicBytes_ extends DynamicBytesBase {
     static get maxLength() {
       return maxLength;
     }
@@ -39,38 +71,23 @@ function DynamicBytes({ maxLength }: { maxLength: number }) {
       return provableBytes;
     }
 
-    /**
-     * Create DynamicBytes from a byte array in various forms.
-     *
-     * ```ts
-     * let bytes = Bytes.fromBytes([1, 2, 3]);
-     * ```
-     */
-    static fromBytes(bytes: Uint8Array | (number | bigint | UInt8)[] | Bytes) {
+    static fromBytes(bytes: Uint8Array | (number | UInt8)[] | Bytes) {
+      if (bytes instanceof Uint8Array) return provableBytes.fromValue(bytes);
       if (bytes instanceof Bytes.Base) bytes = bytes.bytes;
-      return provableBytes.fromValue(
-        [...bytes].map((t) => UInt8.from(t)) as any
+      return new DynamicBytes_(
+        bytes.map((t) => UInt8.from(t)),
+        Field(bytes.length)
       );
     }
 
-    /**
-     * Create DynamicBytes from a hex string.
-     *
-     * ```ts
-     * let bytes = Bytes.fromHex('010203');
-     * ```
-     */
     static fromHex(hex: string) {
       assert(hex.length % 2 === 0, 'Hex string must have even length');
       let bytes = chunk([...hex], 2).map((s) => parseInt(s.join(''), 16));
-      return DynamicBytes.fromBytes(bytes);
+      return DynamicBytes_.fromBytes(bytes);
     }
 
-    /**
-     * Create DynamicBytes from a string.
-     */
     static fromString(s: string) {
-      return DynamicBytes.fromBytes(new TextEncoder().encode(s));
+      return DynamicBytes_.fromBytes(new TextEncoder().encode(s));
     }
   }
 
@@ -78,7 +95,7 @@ function DynamicBytes({ maxLength }: { maxLength: number }) {
     UInt8,
     { value: bigint },
     typeof DynamicBytesBase
-  >(UInt8 as any, DynamicBytes)
+  >(UInt8 as any, DynamicBytes_)
     .mapValue<Uint8Array>({
       there(s) {
         return Uint8Array.from(s, ({ value }) => Number(value));
@@ -96,7 +113,7 @@ function DynamicBytes({ maxLength }: { maxLength: number }) {
     })
     .build();
 
-  return DynamicBytes;
+  return DynamicBytes_;
 }
 
 DynamicBytes.fromBytes = function (bytes: Uint8Array) {
@@ -104,13 +121,13 @@ DynamicBytes.fromBytes = function (bytes: Uint8Array) {
 };
 
 DynamicBytes.from = function (
-  input: DynamicArray<UInt8> | Uint8Array | string
+  input: DynamicArray<UInt8> | Uint8Array | string | (number | UInt8)[]
 ): DynamicBytes {
   if (typeof input === 'string') {
     let Bytes = DynamicBytes({ maxLength: stringLength(input) });
     return Bytes.fromString(input);
   }
-  if (input instanceof Uint8Array) {
+  if (input instanceof Uint8Array || Array.isArray(input)) {
     let Bytes = DynamicBytes({ maxLength: input.length });
     return Bytes.fromBytes(input);
   }

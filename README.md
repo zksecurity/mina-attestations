@@ -178,7 +178,7 @@ The first parameter to `PresentationSpec()` specifies the inputs to the presenta
 
 Note: The input name "credential" in this example is arbitrary and picked by the developer. You could also have multiple credentials as inputs, and make a statement that combines their properties. Similarly, you can have many claims.
 
-The second parameter to `PresentationSpec()` defines the circuit logic, as a function from the inputs, using our `Operations` DSL. `Operations` is, essentially, a radically simplified language for writing zk circuits, tailored to the use case of making statements about user data. It contains common operations like testing equality, comparisons, arithmetic, conditionals, hashing, etc.
+The second parameter to `PresentationSpec()` defines the circuit logic, as a function from the inputs, using our `Operation` DSL. `Operation` is, essentially, a radically simplified language for writing zk circuits, tailored to the use case of making statements about user data. It contains common operations like testing equality, comparisons, arithmetic, conditionals, hashing, etc.
 
 There are two outputs, `assert` and `outputClaim`, both of which contain `Operation` nodes.
 
@@ -187,7 +187,7 @@ There are two outputs, `assert` and `outputClaim`, both of which contain `Operat
 
 The assertion logic should be easy to read for you: We check that the `nationality` doesn't equal `"United States"`. We also check a condition on the credential's `expiresAt` attribute. The idea is that the verifier can pass in the _current date_ as `createdAt`, and this check ensures the credential hasn't expired without leaking the exact expiry date.
 
-> 🤓 By interacting with this code in your editor, you might appreciate that all our library interfaces are richly typed, using generic types to preserve as much information as possible. For example, the inferred type of `credential`, which is passed as an input to `PresentationSpec`, is carried into the callback. There, `Operations.property(credential, 'nationality')` is correctly inferred to be a `String`. This, in turn, ensures that a `String` is also passed to the `Operation.constant()`, because `Operations.equal()` requires its inputs to be of equal type.
+> 🤓 By interacting with this code in your editor, you might appreciate that all our library interfaces are richly typed, using generic types to preserve as much information as possible. For example, the inferred type of `credential`, which is passed as an input to `PresentationSpec`, is carried into the callback. There, `Operation.property(credential, 'nationality')` is correctly inferred to be a `String`. This, in turn, ensures that a `String` is also passed to the `Operation.constant()`, because `Operation.equals()` requires its inputs to be of equal type.
 
 Behind the scenes, the circuit created from a presentation spec contains more than the `assert` and `outputClaim` logic. It also verifies the authorization on all input credentials, and in addition verifies a signature by the credential owner. The latter ensures that nobody but the owner can present a credential.
 
@@ -221,7 +221,7 @@ credential.nationality ≠ "United States"
 
 These points imply that the representation of a circuit has to be simple, and deserializable without concerns about malicious code execution.
 
-Simplicity is the core advantage that `Operations` has over a general-purpose zk framework like o1js. It explains why we aren't using o1js as the circuit-writing interface directly.
+Simplicity is the core advantage that `Operation` has over a general-purpose zk framework like o1js. It explains why we aren't using o1js as the circuit-writing interface directly.
 
 The best part is that, by being easy to read and understand, presentation specs are also really easy to write for developers!
 
@@ -1885,6 +1885,7 @@ Features:
 - `StaticArray`, which provides an API consistent with `DynamicArray` but for fixed-length arrays
 - `DynamicRecord`, a wrapper for objects that you don't necessarily know the exact layout of, but can be hashed and accessed properties of inside a circuit
 - `hashDynamic()`, for Poseidon-hashing pretty much any input (including plain strings, records, o1js types etc) in a way which is compatible to in-circuit hashing of padded data types like `DynamicRecord` and `DynamicArray`
+- `Numeric` for performing arithmetic or comparisons on any combination of numberic types (e.g., check if a `UInt32` is less than a `Int64`)
 - `toDecimalString()`, a gadget to compute the variable-length decimal string from a `Field`
 
 The sub-library is intended to help with importing **real-world credentials** into the Mina ecosystem: For example, to "import" your passport, you have to verify the passport authority's signature on your passport data. The signature relies one of several hashing and signature schemes such as ECDSA, RSA and SHA2-256, SHA2-384, SHA2-512. Also, the signature will be over a dynamic-length string.

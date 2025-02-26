@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs';
 import { Switch } from './components/ui/switch';
 import { Label } from './components/ui/label';
+import { useToast, ToastProvider } from './components/ui/toast';
+import AnonymousPoll from './components/poll';
+import ZkPassTab from './components/ZkPassTab';
+import VerifyZkPassTab from './components/VerifyZkPassTab';
+import { CopyableCode } from './components/ui/copyable-code';
 import {
   getPublicKey,
   obtainCredential,
 } from './interactions/obtain-credential';
-import { useToast, ToastProvider } from './components/ui/toast';
-import { storeCredential } from './interactions/store-credential';
-import AnonymousPoll from './components/poll';
 import { loginRequest } from './interactions/presentation-request';
-import ZkPassTab from './components/ZkPassTab';
-import { CopyableCode } from './components/ui/copyable-code';
+import { storeCredential } from './interactions/store-credential';
 
 const IssueCredentialsForm: React.FC<{
   useMockWallet: boolean;
@@ -313,7 +314,13 @@ const App: React.FC = () => {
                   Anonymous Poll
                 </TabsTrigger>
                 <TabsTrigger value="zkpass" className="flex-1 min-w-[120px]">
-                  ZkPass Integration
+                  ZkPass Credential
+                </TabsTrigger>
+                <TabsTrigger
+                  value="verify-zkpass"
+                  className="flex-1 min-w-[120px]"
+                >
+                  Verify ZkPass
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -359,8 +366,13 @@ const App: React.FC = () => {
             <TabsContent value="poll" className="mt-6">
               <AnonymousPoll useMockWallet={useMockWallet} />
             </TabsContent>
+
             <TabsContent value="zkpass" className="mt-6">
               <ZkPassTab useMockWallet={useMockWallet} />
+            </TabsContent>
+
+            <TabsContent value="verify-zkpass" className="mt-6">
+              <VerifyZkPassTab useMockWallet={useMockWallet} />
             </TabsContent>
           </Tabs>
         </main>
