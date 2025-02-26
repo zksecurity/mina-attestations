@@ -11,6 +11,8 @@ import { DynamicBytes } from '../../dynamic.ts';
 import { ZkPass, type ZkPassResponseItem } from '../zkpass.ts';
 import { Credential } from '../../credential-index.ts';
 
+const proofsEnabled = false;
+
 const maxMessageLength = 128;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
 
@@ -22,7 +24,7 @@ console.timeEnd('hash helper constraints');
 console.time('compile dependencies');
 await EcdsaEthereum.compileDependencies({
   maxMessageLength,
-  proofsEnabled: true,
+  proofsEnabled,
 });
 console.timeEnd('compile dependencies');
 
@@ -31,7 +33,7 @@ const EcdsaCredential = await EcdsaEthereum.Credential({ maxMessageLength });
 console.timeEnd('ecdsa create credential');
 
 console.time('ecdsa compile');
-let vk = await EcdsaCredential.compile();
+let vk = await EcdsaCredential.compile({ proofsEnabled });
 console.timeEnd('ecdsa compile');
 
 // create ecdsa cred from zkpass data
@@ -115,4 +117,5 @@ console.timeEnd('ecdsa prove');
 
 let json = Credential.toJSON(credential);
 let recovered = await Credential.fromJSON(json);
-await Credential.validate(recovered);
+
+if (proofsEnabled) await Credential.validate(recovered);

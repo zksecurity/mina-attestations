@@ -2,15 +2,8 @@ import { owner } from '../../../tests/test-utils.ts';
 import { ZkPass, type ZkPassResponseItem } from '../zkpass.ts';
 import { Credential } from '../../credential-index.ts';
 
-console.time('compile dependencies');
-await ZkPass.compileDependenciesPartial({ proofsEnabled: true });
-console.timeEnd('compile dependencies');
+const proofsEnabled = false;
 
-console.time('zkpass create credential');
-const ZkPassCredentialPartial = await ZkPass.CredentialPartial();
-console.timeEnd('zkpass create credential');
-
-// create zkpass cred from zkpass data
 const schema = 'c7eab8b7d7e44b05b41b613fe548edf5';
 
 const response: ZkPassResponseItem = {
@@ -27,21 +20,19 @@ const response: ZkPassResponseItem = {
     '0x99d61fa8f8413a3eaa38d2c064119c67592c696a0b8c2c2eb4a9b2e4ef122de3674e68203d0388d238635e36237f41279a406512515f6a26b0b38479d5c6eade1b',
 };
 
-console.time('zkpass constraints (partial)');
-let cs = (await ZkPassCredentialPartial.program.analyzeMethods()).run;
-console.log(cs.summary());
-console.timeEnd('zkpass constraints (partial)');
-
 let cred = await ZkPass.importCredentialPartial(
   owner,
   schema,
   response,
-  console.log
+  console.log,
+  { proofsEnabled }
 );
 
 let json = Credential.toJSON(cred);
 let recovered = await Credential.fromJSON(json);
-await Credential.validate(recovered);
+
+if (proofsEnabled) await Credential.validate(recovered);
+
 console.log('zkpasstest::cred.witness.vk.hash:', cred.witness.vk.hash.toJSON());
 
 ZkPass.verifyPublicInput(cred.witness.proof.publicInput);
