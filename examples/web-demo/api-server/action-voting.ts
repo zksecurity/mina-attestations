@@ -1,7 +1,6 @@
-import { Bool, Bytes, Field, UInt64 } from 'o1js';
+import { Bool, Bytes, Field, Int64, UInt64 } from 'o1js';
 import {
   Claim,
-  Constant,
   Credential,
   DynamicRecord,
   DynamicString,
@@ -29,7 +28,7 @@ const String = DynamicString({ maxLength: 50 });
 const Schema = DynamicRecord(
   {
     nationality: String,
-    birthDate: UInt64,
+    birthDate: Int64,
     expiresAt: UInt64,
     id: Bytes(16),
   },
@@ -45,21 +44,8 @@ const votingSpec = Spec(
 
     // TODO we should have `Operation.action()` to get the `action` that was used for `context`
     actionId: Claim(Field),
-
-    unitedStates: Constant(String, String.from('United States of America')),
-    eighteenYears: Constant(
-      UInt64,
-      UInt64.from(18 * 365 * 24 * 60 * 60 * 1000)
-    ),
   },
-  ({
-    credential,
-    expectedIssuer,
-    createdAt,
-    actionId,
-    unitedStates,
-    eighteenYears,
-  }) => {
+  ({ credential, expectedIssuer, createdAt, actionId }) => {
     // extract properties from the credential
     let issuer = Operation.issuer(credential);
     let expiresAt = Operation.property(credential, 'expiresAt');
@@ -67,19 +53,30 @@ const votingSpec = Spec(
     let birthDate = Operation.property(credential, 'birthDate');
 
     return {
-      assert: Operation.and(
-        // - the credential issuer matches the expected (public) input, i.e. this server
+      assert: [
+        // - the credential issuer matches the expected issuer, i.e. this server
         Operation.equals(issuer, expectedIssuer),
 
         // - the credential is not expired (by comparing with the current date)
         Operation.lessThanEq(createdAt, expiresAt),
 
         // - the nationality is not USA
-        Operation.not(Operation.equals(nationality, unitedStates)),
+        Operation.not(
+          Operation.equals(
+            nationality,
+            Operation.constant(String.from('United States of America'))
+          )
+        ),
 
         // - the user is older than 18 years (by comparing with the current date)
-        Operation.lessThan(Operation.add(birthDate, eighteenYears), createdAt)
-      ),
+        Operation.lessThan(
+          Operation.add(
+            birthDate,
+            Operation.constant(Int64.from(18 * 365 * 24 * 60 * 60 * 1000))
+          ),
+          createdAt
+        ),
+      ],
 
       // return a nullifier
       // this won't reveal the data because our Schema with the `id` field has enough entropy

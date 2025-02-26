@@ -1,6 +1,6 @@
 export { DynamicArray } from './dynamic/dynamic-array.ts';
 export { StaticArray } from './dynamic/static-array.ts';
-export { DynamicBytes } from './dynamic/dynamic-bytes.ts';
+export { DynamicBytes, DynamicBytesBase } from './dynamic/dynamic-bytes.ts';
 export { DynamicString } from './dynamic/dynamic-string.ts';
 export { DynamicRecord } from './dynamic/dynamic-record.ts';
 export {
@@ -15,6 +15,7 @@ export {
   toBaseBE,
   fromBaseBE,
 } from './dynamic/gadgets-digits.ts';
+export { Numeric } from './dynamic/gadgets-numeric.ts';
 
 export { hashDynamic, hashDynamicWithPrefix } from './dynamic/dynamic-hash.ts';
 export { Schema } from './dynamic/schema.ts';

@@ -9,16 +9,16 @@ import { API_URL } from '../config';
 import { z } from 'zod';
 import { getProvider } from './obtain-credential';
 
-export { loginRequest, submitVote };
+export { loginRequest, submitVote, verifyZkpassRequest };
 
 async function loginRequest(
   useMockWallet: boolean,
-  log: (msg: string) => void = () => {}
+  setStatus: (msg: string) => void = () => {}
 ) {
   return presentationRequest(
     { GET: 'login-request', POST: 'login' },
     useMockWallet,
-    log
+    setStatus
   );
 }
 
@@ -32,16 +32,27 @@ let PollResults = z.object({
 async function submitVote(
   vote: 'btc' | 'eth',
   useMockWallet: boolean,
-  log: (msg: string) => void = () => {}
+  setStatus: (msg: string) => void = () => {}
 ) {
-  log('Submitting vote...');
+  setStatus('Submitting vote...');
   let response = await presentationRequest(
     { GET: 'poll-request', POST: 'poll' },
     useMockWallet,
-    log,
+    setStatus,
     { vote }
   );
   return PollResults.parse(JSON.parse(response));
+}
+
+async function verifyZkpassRequest(
+  useMockWallet: boolean,
+  setStatus: (status: string) => void
+) {
+  await presentationRequest(
+    { GET: 'verify-zkpass-request', POST: 'verify-zkpass' },
+    useMockWallet,
+    setStatus
+  );
 }
 
 /**
@@ -50,10 +61,10 @@ async function submitVote(
 async function presentationRequest(
   endpoints: { GET: string; POST: string },
   useMockWallet: boolean,
-  log: (msg: string) => void = () => {},
+  setStatus: (msg: string) => void = () => {},
   query?: Record<string, string>
 ) {
-  log('Fetching presentation request...');
+  setStatus('Fetching presentation request...');
   let queryStr = query ? new URLSearchParams(query).toString() : '';
   let response = await fetch(`${API_URL}/${endpoints.GET}?${queryStr}`, {
     method: 'GET',
@@ -64,7 +75,7 @@ async function presentationRequest(
   }
   let requestJson = await response.text();
 
-  log('Awaiting proof from wallet...');
+  setStatus('Awaiting proof from wallet...');
   let presentation: string;
   if (useMockWallet) {
     presentation = await createMockPresentation(requestJson);
@@ -77,7 +88,7 @@ async function presentationRequest(
     presentation = result;
   }
 
-  log('Sending proof for verification...');
+  setStatus('Sending proof for verification...');
   let response2 = await fetch(`${API_URL}/${endpoints.POST}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
