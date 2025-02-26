@@ -198,12 +198,12 @@ For an imported credential, our presentation uses recursion and verifies the att
 
 Since arbitrary logic can be encoded in a zk proof, imported credentials can cover a wide variety of existing credentials: You just need someone to implement an o1js circuit that verifies them. The only thing required from proofs to make them usable as an imported credentials is that their public output follows the structure `{ owner, data }`, where `owner` is the public key of the credential's owner.
 
-For example, to "import" a passport as a credential, we need a circuit that proves it has a valid passport, and exposes the passport data in `data`. A user with their passport at hand can then wrap them in that proof and now has an imported credential.
+For example, to "import" a passport as a credential, we need a circuit that proves it has a valid passport, and exposes the passport data in `data`. A user with their passport at hand can wrap it in that proof to get an imported credential.
 
 There are cool examples for what we could "import" as a credential, that go beyond the traditional concept of a credentials. Everything you can prove in zk can be a credential!
 
 For example, [zk-email](https://prove.email/) proves the DKIM signature on emails to support the statement "I received this particular email from this domain", which has very interesting applications.
-By contrast to the original zk-email project, the imported credential version would simply expose the _entire_ email: Subject, from address and body text. Only when doing presentations, we care about hiding the content and making specific assertions about it.
+The imported credential version of that would simply expose the entire email as `data`: Subject, "from" address and body text. Only when doing presentations, we care about hiding the content and making specific assertions about it.
 
 ### Why not do everything in one proof?
 
@@ -221,7 +221,7 @@ Another reason is that modeling imported credentials as recursive proofs keeps o
 import { EcdsaEthereum } from 'mina-attestations/imported';
 ```
 
-- [ZkPass](https://zkpass.org) validator signature (partially available, final version is [WIP](https://github.com/zksecurity/mina-attestations/pull/108))
+- [ZkPass](https://zkpass.org) credential that wraps a ZkPass validator signature, which attests to a web interaction created by the ZkPass TransGate browser extension.
 
 ```ts
 import { ZkPass, type ZkPassResponseItem } from 'mina-attestations/imported';
