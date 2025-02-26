@@ -4,7 +4,6 @@ import {
   Poseidon,
   PrivateKey,
   Provable,
-  PublicKey,
   Signature,
   Struct,
   VerificationKey,
@@ -24,7 +23,12 @@ import {
   type StoredCredential,
 } from './credential.ts';
 import { assert, zip } from './util.ts';
-import { generateContext, computeContext } from './context.ts';
+import {
+  hashContext,
+  computeHttpsContext,
+  computeZkAppContext,
+  ZkAppIdentity,
+} from './context.ts';
 import { NestedProvable } from './nested.ts';
 import {
   serializeSpec,
@@ -590,12 +594,12 @@ function HttpsRequest<Output, Inputs extends Record<string, Input>>(request: {
     ...request,
 
     deriveContext(inputContext, walletContext, derivedContext) {
-      const context = computeContext({
+      const context = computeHttpsContext({
         ...inputContext,
         ...walletContext,
         ...derivedContext,
       });
-      return generateContext(context);
+      return hashContext(context);
     },
   };
 }
@@ -613,7 +617,7 @@ type ZkAppRequest<
   Output,
   Inputs,
   ZkAppInputContext,
-  { verifierIdentity: PublicKey }
+  { verifierIdentity: ZkAppIdentity }
 >;
 
 function ZkAppRequest<Output, Inputs extends Record<string, Input>>(request: {
@@ -628,12 +632,12 @@ function ZkAppRequest<Output, Inputs extends Record<string, Input>>(request: {
     ...request,
 
     deriveContext(inputContext, walletContext, derivedContext) {
-      const context = computeContext({
+      const context = computeZkAppContext({
         ...inputContext,
         ...walletContext,
         ...derivedContext,
       });
-      return generateContext(context);
+      return hashContext(context);
     },
   };
 }

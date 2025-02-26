@@ -9,7 +9,6 @@ import {
   PublicKey,
   Signature,
   PrivateKey,
-  DynamicProof,
   Undefined,
   Struct,
   FeatureFlags,
@@ -38,8 +37,12 @@ import {
   type WalletDerivedContext,
   ZkAppRequest,
 } from '../src/presentation.ts';
-import { zkAppAddress } from './test-utils.ts';
-import { computeContext, generateContext } from '../src/context.ts';
+import { zkAppIdentity } from './test-utils.ts';
+import {
+  computeHttpsContext,
+  computeZkAppContext,
+  hashContext,
+} from '../src/context.ts';
 import {
   deserializeProvable,
   deserializeProvableType,
@@ -804,17 +807,17 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: Field(456),
     };
 
-    const originalContext = generateContext(
-      computeContext({
+    const originalContext = hashContext(
+      computeZkAppContext({
         ...originalRequest.inputContext,
-        verifierIdentity: zkAppAddress,
+        verifierIdentity: zkAppIdentity,
         ...derivedContext,
       })
     );
-    const deserializedContext = generateContext(
-      computeContext({
-        ...originalRequest.inputContext,
-        verifierIdentity: zkAppAddress,
+    const deserializedContext = hashContext(
+      computeZkAppContext({
+        ...deserialized.inputContext,
+        verifierIdentity: zkAppIdentity,
         ...derivedContext,
       })
     );
@@ -867,15 +870,15 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: Field(456),
     };
 
-    const originalContext = generateContext(
-      computeContext({
+    const originalContext = hashContext(
+      computeHttpsContext({
         ...originalRequest.inputContext,
         verifierIdentity: serverUrl,
         ...derivedContext,
       })
     );
-    const deserializedContext = generateContext(
-      computeContext({
+    const deserializedContext = hashContext(
+      computeHttpsContext({
         ...originalRequest.inputContext,
         verifierIdentity: serverUrl,
         ...derivedContext,

@@ -7,7 +7,7 @@ import {
   owner,
   ownerKey,
   randomPublicKey,
-  zkAppAddress,
+  zkAppIdentity,
 } from './test-utils.ts';
 import { Credential } from '../src/credential-index.ts';
 import { Presentation, PresentationRequest } from '../src/presentation.ts';
@@ -198,20 +198,20 @@ test('presentation with context binding', async (t) => {
 
     let presentation = await Presentation.create(ownerKey, {
       request,
-      context: { verifierIdentity: zkAppAddress },
+      context: { verifierIdentity: zkAppIdentity },
       credentials: [signedData],
     });
 
     // verifies
     await Presentation.verify(request, presentation, {
-      verifierIdentity: zkAppAddress,
+      verifierIdentity: zkAppIdentity,
     });
 
     // doesn't verify against different context
     await assert.rejects(
       () =>
         Presentation.verify(request, presentation, {
-          verifierIdentity: randomPublicKey(),
+          verifierIdentity: { ...zkAppIdentity, address: randomPublicKey() },
         }),
       /Invalid proof/,
       'Should throw an error for invalid context'
@@ -226,7 +226,7 @@ test('presentation with context binding', async (t) => {
     await assert.rejects(
       () =>
         Presentation.verify(request2, presentation, {
-          verifierIdentity: zkAppAddress,
+          verifierIdentity: zkAppIdentity,
         }),
       /Invalid proof/,
       'Should throw an error for invalid context'
@@ -282,7 +282,7 @@ test('serialize presentation', async (t) => {
 
     let presentation = await Presentation.create(ownerKey, {
       request,
-      context: { verifierIdentity: zkAppAddress },
+      context: { verifierIdentity: zkAppIdentity },
       credentials: [signedData],
     });
 
