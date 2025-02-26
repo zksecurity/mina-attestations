@@ -1,7 +1,10 @@
-# The Design of Mina Credentials
+# The Design of Mina Attestations
 
-This document is a high-level overview of the Mina Credentials system,
+This document is a high-level overview of the Mina Attestations system,
 its relation to other systems, its (informal) design goals and rationale for the design choices made in the system.
+
+> See [the RFC by Mina Foundation](https://github.com/MinaFoundation/Core-Grants/blob/1fb5d2335b1a2b77249e41b9d593edcb8a8bbce1/RFCs/rfc-0009-wallet-attestation-api.md) for additional background and motivation.
+
 The goal of this project is to design a system sufficiently flexible to encompass any "anonymous credential"-style application,
 while unifying the user interface, API and design with the aim of providing a clear specification with minimal footgun potential.
 
@@ -9,7 +12,7 @@ This is achieved by using the recursive proofs of Mina extensively:
 seperating the "creation" of the credential from the "presentation" of the credential:
 besides unifying the presentation proof, it also allows doing most of the expensive operations (e.g. verifying an RSA signature using SHA256 and parsing a JSON object) once during the creation of the credential.
 
-At the highest possible level of abstraction, Mina credentials
+At the highest possible level of abstraction, credentials
 are a set of "attributes" (e.g. name, age, SSN) attested to by a "issuer".
 The issuer is an opaque entity (a hash) and may identify e.g. the root of a Merkle tree,
 the root authorities of a PKI, the hash of Google's OAuth public key, etc.
@@ -21,25 +24,19 @@ allowing developers to create new credential types and application logics sepera
 
 # Related Works & Systems
 
-## [zkLogin](https://docs.sui.io/concepts/cryptography/zklogin)
-
-zkLogin
-
-## [zkPassport](https://zkpassport.id/)
-
-zkPassport is based
-
-## [World ID and Semaphore](https://worldcoin.org/blog/worldcoin/intro-zero-knowledge-proofs-semaphore-application-world-id)
+- [zkLogin](https://docs.sui.io/concepts/cryptography/zklogin)
+- [zkPassport](https://zkpassport.id/)
+- [World ID and Semaphore](https://worldcoin.org/blog/worldcoin/intro-zero-knowledge-proofs-semaphore-application-world-id)
 
 The goal of Mina credentials is broader than these systems and must enable
 the implementation of these systems within the Mina ecosystem.
 
-# Design Rational
+# Design Rationale
 
 The cryptography team considered two options for the presentation proof.
 
 1. Credentials are "bearer tokens": simply knowing the credential is sufficient to present it.
-2. Credentials are associate attributes/capabilities to public keys.
+2. Credentials are attributes/capabilities associated to public keys.
 
 To explain our choice, let us first explore the two options in more detail.
 
@@ -74,7 +71,7 @@ assert(cred.issuer == issuer);
 assert(cred.attributes['age'] >= 18);
 ```
 
-Using the context of the presentation as an public input to the proof:
+Using the context of the presentation as a public input to the proof:
 the context is a domain-specific hash of the context in which the credential is presented,
 incorporating the entity to which the credential is presented, a nonce to avoid replay attacks and additional information as needed.
 We describe this in more detail in the formal specification.
@@ -114,7 +111,7 @@ assert(cred.issuer == issuer);
 assert(cred.attributes['age'] >= 18);
 ```
 
-Again, using the context as an public input to the proof: but now the context is also signed by the owner
+Again, using the context as a public input to the proof: but now the context is also signed by the owner
 and the signature is verified in-circuit.
 
 ## Justification
@@ -128,9 +125,9 @@ is outweighed by the following benefits:
   authortization requires the parties to threshold sign using Schnorr.
 
 - Outsourcing the computation of the proofs is possible at the cost of privacy:
-  the user must reveal the credential and the context to the prover, but the prover cannot impersonate the user or change the intented action.
+  the user must reveal the credential and the context to the prover, but the prover cannot impersonate the user or change the intended action.
   This is useful in scenarios where the prover is a resource-constrained device,
-  this is useful in applications such as zkLogin, where for practicality reasons, the proving is outsourced to a third party in practice.
+  or in applications such as zkLogin, where for practicality reasons, the proving is outsourced to a third party.
   We want to allow the Mina ecosystem this option should it be relevant to particular applications.
 
 - A compromise of the credential object itself does not allow impersonation.
@@ -139,11 +136,13 @@ is outweighed by the following benefits:
   and nullifiers can be computed / exposed against this public key to allow linkability when desired.
 
 - From a theorectical/robustness perspective, a small benefit is that we can assume weaker properties of the proof system:
-  the first scheme requires [(weak) simulation extractability](https://eprint.iacr.org/2020/1306.pdf) since the "context".
+  the first scheme requires [(weak) simulation extractability](https://eprint.iacr.org/2020/1306.pdf).
 
-We obtain a design in which the SNARK serves only to hide the
+<!-- TODO We obtain a design in which the SNARK serves only to hide the -->
 
-# Attestation Protocol
+<!-- TODO: previous RFC text goes below, commented for now because unfinished -->
+
+<!-- # Attestation Protocol
 
 ## Assumptions
 
@@ -223,4 +222,4 @@ in a modular way.
 
 - ECDSA signatures over foreign fields on JSON document (e.g. JSON Web Tokens),
 - RSA signatures.
-- Merkle tree inclusion/exclusion proofs.
+- Merkle tree inclusion/exclusion proofs. -->
