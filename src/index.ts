@@ -26,6 +26,7 @@ export {
 } from './dynamic/dynamic-hash.ts';
 export { Schema } from './dynamic/schema.ts';
 export { PrettyPrinter } from './pretty-printer.ts';
+export { Numeric } from './dynamic/gadgets-numeric.ts';
 
 export type {
   StoredCredentialJSON,
