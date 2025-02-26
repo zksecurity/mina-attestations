@@ -37,14 +37,14 @@ const ZkPass = {
     return (partialCredential ??= createCredentialZkPassPartial());
   },
 
-  CredentialFull() {
-    return (fullCredential ??= createCredentialZkPassFull());
-  },
-
   async compileDependenciesPartial({ proofsEnabled = true } = {}) {
     await getHashHelper(maxMessageLength).compile({ proofsEnabled });
     let cred = await ZkPass.CredentialPartial();
     await cred.compile({ proofsEnabled });
+  },
+
+  CredentialFull() {
+    return (fullCredential ??= createCredentialZkPassFull());
   },
 
   async compileDependenciesFull({ proofsEnabled = true } = {}) {
@@ -78,7 +78,8 @@ async function importCredentialPartial(
   owner: PublicKey,
   schema: string,
   response: ZkPassResponseItem,
-  log: (msg: string) => void = () => {}
+  log: (msg: string) => void = () => {},
+  { proofsEnabled = true } = {}
 ) {
   // validate public fields hash
   let recoveredPublicFieldsHash = ZkPass.genPublicFieldHash(
@@ -106,7 +107,7 @@ async function importCredentialPartial(
   let allocatorAddress = ByteUtils.fromHex(response.allocatorAddress);
 
   log('Compiling ZkPass credential...');
-  await ZkPass.compileDependenciesPartial();
+  await ZkPass.compileDependenciesPartial({ proofsEnabled });
 
   let ZkPassCredential = await ZkPass.CredentialPartial();
 
