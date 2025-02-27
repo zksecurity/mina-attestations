@@ -4,7 +4,7 @@ import {
   type CredentialSpec,
   signCredentials,
 } from '../src/credential.ts';
-import { ZkAppIdentity } from '../src/context.ts';
+import type { ZkAppIdentity } from '../src/context.ts';
 
 export {
   createOwnerSignature,

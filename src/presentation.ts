@@ -27,7 +27,7 @@ import {
   hashContext,
   computeHttpsContext,
   computeZkAppContext,
-  ZkAppIdentity,
+  type ZkAppIdentity,
 } from './context.ts';
 import { NestedProvable } from './nested.ts';
 import {
