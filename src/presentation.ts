@@ -29,8 +29,11 @@ import {
   hashContext,
   computeHttpsContext,
   computeZkAppContext,
-  type ZkAppIdentity,
   type NetworkId,
+  type WalletDerivedContext,
+  type HttpsInputContext,
+  type HttpsWalletContext,
+  type ZkAppInputContext,
 } from './context.ts';
 import { NestedProvable } from './nested.ts';
 import {
@@ -51,26 +54,9 @@ import { PresentationRequestSchema } from './validation.ts';
 export { PresentationRequest, HttpsRequest, ZkAppRequest, Presentation };
 
 // internal
-export {
-  type ZkAppInputContext,
-  type HttpsInputContext,
-  type WalletDerivedContext,
-  type PresentationRequestType,
-  hashClaims,
-  pickCredentials,
-};
+export { type PresentationRequestType, hashClaims, pickCredentials };
 
 type PresentationRequestType = 'no-context' | 'zk-app' | 'https';
-
-type InputContext = {
-  action: string;
-  serverNonce: Field;
-};
-type WalletDerivedContext = {
-  vkHash: Field;
-  claims: Field;
-  clientNonce: Field;
-};
 
 type PresentationRequest<
   RequestType extends PresentationRequestType = PresentationRequestType,
@@ -589,15 +575,6 @@ type RequestFromType<
   ? HttpsRequest<Output, Inputs>
   : never;
 
-type HttpsInputContext = InputContext & {
-  type: 'https';
-};
-
-type ZkAppInputContext = InputContext & {
-  type: 'zk-app';
-  verifierIdentity: ZkAppIdentity;
-};
-
 type NoContextRequest<
   Output = any,
   Inputs extends Record<string, Input> = Record<string, Input>
@@ -611,7 +588,7 @@ type HttpsRequest<
   Output,
   Inputs,
   HttpsInputContext,
-  { verifierIdentity: string }
+  HttpsWalletContext
 >;
 
 type ZkAppRequest<

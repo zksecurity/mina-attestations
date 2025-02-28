@@ -1,10 +1,6 @@
 import { Claim, Constant, Spec, type Input } from './program-spec.ts';
 import { Node } from './operation.ts';
 import {
-  type HttpsInputContext,
-  type ZkAppInputContext,
-} from './presentation.ts';
-import {
   type SerializedValue,
   serializeNestedProvable,
   serializeProvable,
@@ -16,6 +12,7 @@ import {
 import { assert, mapObject } from './util.ts';
 import { Credential } from './credential-index.ts';
 import type { InputJSON, NodeJSON, SpecJSON } from './validation.ts';
+import type { HttpsInputContext, ZkAppInputContext } from './context.ts';
 
 export {
   type SerializedValue,

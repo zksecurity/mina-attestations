@@ -8,6 +8,12 @@ export {
   hashContext,
   type ZkAppIdentity,
   type NetworkId,
+  type ZkAppInputContext,
+  type ZkAppContext,
+  type HttpsInputContext,
+  type HttpsWalletContext,
+  type HttpsContext,
+  type WalletDerivedContext,
 };
 
 type ContextType = 'zk-app' | 'https';
@@ -20,6 +26,15 @@ type BaseContext = {
   claims: Field;
 };
 
+type BaseInputContext = {
+  action: string;
+  serverNonce: Field;
+};
+
+type HttpsInputContext = BaseInputContext & {
+  type: 'https';
+};
+
 type NetworkId = 'mainnet' | 'devnet' | { custom: string };
 
 type ZkAppIdentity = {
@@ -28,17 +43,29 @@ type ZkAppIdentity = {
   network: NetworkId;
 };
 
-type ZkAppContext = BaseContext & {
+type ZkAppInputContext = BaseInputContext & {
   type: 'zk-app';
   verifierIdentity: ZkAppIdentity;
-  action: string;
 };
 
-type HttpsContext = BaseContext & {
-  type: 'https';
+type HttpsWalletContext = {
   verifierIdentity: string;
-  action: string;
 };
+type WalletDerivedContext = {
+  vkHash: Field;
+  claims: Field;
+  clientNonce: Field;
+};
+
+type ZkAppContext = ZkAppInputContext & WalletDerivedContext;
+
+type HttpsContext = HttpsInputContext &
+  HttpsWalletContext &
+  WalletDerivedContext;
+
+// type-level assertions
+true satisfies ZkAppContext extends BaseContext ? true : false;
+true satisfies HttpsContext extends BaseContext ? true : false;
 
 type ContextOutput = {
   type: ContextType;
@@ -53,9 +80,9 @@ function computeNonce(serverNonce: Field, clientNonce: Field): Field {
   return Poseidon.hashWithPrefix(prefixes.nonce, [serverNonce, clientNonce]);
 }
 
-function computeHttpsContext(input: Omit<HttpsContext, 'type'>): ContextOutput {
+function computeHttpsContext(input: HttpsContext): ContextOutput {
   return {
-    type: 'https',
+    type: input.type,
     vkHash: input.vkHash,
     nonce: computeNonce(input.serverNonce, input.clientNonce),
     verifierIdentity: hashString(input.verifierIdentity),
@@ -64,9 +91,9 @@ function computeHttpsContext(input: Omit<HttpsContext, 'type'>): ContextOutput {
   };
 }
 
-function computeZkAppContext(input: Omit<ZkAppContext, 'type'>): ContextOutput {
+function computeZkAppContext(input: ZkAppContext): ContextOutput {
   return {
-    type: 'zk-app',
+    type: input.type,
     vkHash: input.vkHash,
     nonce: computeNonce(input.serverNonce, input.clientNonce),
     verifierIdentity: hashZkAppIdentity(input.verifierIdentity),
