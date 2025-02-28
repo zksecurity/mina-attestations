@@ -1,14 +1,18 @@
 import {
+  DynamicProof,
+  FeatureFlags,
   Field,
   type JsonProof,
   Poseidon,
   PrivateKey,
   Provable,
+  ProvableType,
   PublicKey,
   Signature,
   Struct,
   TokenId,
   UInt32,
+  Unconstrained,
   VerificationKey,
   verify,
 } from 'o1js';
@@ -17,6 +21,7 @@ import {
   type Input,
   type Claims,
   isCredentialSpec,
+  PublicInputs,
 } from './program-spec.ts';
 import { createProgram, type Program } from './program.ts';
 import {
@@ -48,9 +53,16 @@ import {
   serializeProvable,
 } from './serialize-provable.ts';
 import { PresentationRequestSchema } from './validation.ts';
+import { TypeBuilder } from './provable-type-builder.ts';
 
 // external API
-export { PresentationRequest, HttpsRequest, ZkAppRequest, Presentation };
+export {
+  PresentationRequest,
+  HttpsRequest,
+  ZkAppRequest,
+  Presentation,
+  ProvablePresentation,
+};
 
 // internal
 export { type PresentationRequestType, hashClaims, pickCredentials };
@@ -91,6 +103,8 @@ type CompiledRequest<Output, Inputs extends Record<string, Input>> = {
   spec: Spec<Output, Inputs>;
   program: Program<Output, Inputs>;
   verificationKey: VerificationKey;
+
+  ProvablePresentation: typeof ProvablePresentation<Output, Inputs>;
 };
 
 const PresentationRequest = {
@@ -146,7 +160,7 @@ const PresentationRequest = {
         verifierIdentity: {
           publicKey: context.publicKey,
           tokenId: context.tokenId ?? TokenId.default,
-          network: context.network,
+          network: context.network ?? 'devnet',
         },
         action: context.methodName,
         serverNonce: context.nonce?.value ?? Field(0),
@@ -161,7 +175,7 @@ const PresentationRequest = {
       publicKey: PublicKey;
       tokenId?: Field;
       methodName: string;
-      network: NetworkId;
+      network?: NetworkId;
       nonce?: UInt32;
     }
   ) {
@@ -175,7 +189,7 @@ const PresentationRequest = {
         verifierIdentity: {
           publicKey: context.publicKey,
           tokenId: context.tokenId ?? TokenId.default,
-          network: context.network,
+          network: context.network ?? 'devnet',
         },
         action: context.methodName,
         serverNonce: context.nonce?.value ?? Field(0),
@@ -273,7 +287,36 @@ const Presentation = {
   ): Promise<CompiledRequest<Output, Inputs>> {
     let program = createProgram(spec);
     let verificationKey = await program.compile();
-    return { spec, program, verificationKey };
+    let maxProofsVerified = await program.program.maxProofsVerified();
+    // TODO this is extra work and should be exposed on ZkProgram
+    let featureFlags = await FeatureFlags.fromZkProgram(program.program);
+
+    let compiled = {
+      claimsType: program.claimsType,
+      outputClaimType: program.outputClaimType,
+      verificationKey,
+      maxProofsVerified,
+      featureFlags,
+    };
+
+    class Presentation_ extends ProvablePresentation<Output, Inputs> {
+      compiledRequest() {
+        return compiled;
+      }
+      static get provable(): ProvableType<
+        ProvablePresentation<Output, Inputs>,
+        Presentation<Output, Inputs>
+      > {
+        return super.provable;
+      }
+    }
+
+    return {
+      spec,
+      program,
+      verificationKey,
+      ProvablePresentation: Presentation_,
+    };
   },
 
   async compile<R extends PresentationRequest>(
@@ -475,6 +518,8 @@ async function verifyPresentation<R extends PresentationRequest>(
   return outputClaim;
 }
 
+// json
+
 function toJSON<Output, Inputs extends Record<string, Input>>(
   presentation: Presentation<Output, Inputs>
 ): string {
@@ -642,4 +687,191 @@ function hashClaims(claims: Claims<any>) {
   let claimsType = NestedProvable.fromValue(claims);
   let claimsFields = Struct(claimsType).toFields(claims);
   return Poseidon.hash(claimsFields);
+}
+
+function hashClaimsFromType<T>(claimsType: ProvableType<T>, claims: T) {
+  let claimsFields = ProvableType.get(claimsType).toFields(claims);
+  return Poseidon.hash(claimsFields);
+}
+
+// in-circuit verification and provable type
+
+/**
+ * Presentation that can be verified inside a zkApp.
+ *
+ * Create a subclass for your presentation as follows:
+ *
+ * ```ts
+ * let compiled = await Presentation.precompile(spec);
+ * class ProvablePresentation extends compiled.ProvablePresentation {}
+ * ```
+ */
+class ProvablePresentation<
+  Output = any,
+  Inputs extends Record<string, Input> = any
+> {
+  // properties created from a presentation
+  claims: Claims<Inputs>;
+  outputClaim: Output;
+  clientNonce: Field;
+  serverNonce: Unconstrained<bigint>;
+  proof: Unconstrained<string>;
+
+  constructor(input: {
+    claims: Claims<Inputs>;
+    outputClaim: Output;
+    clientNonce: Field;
+    serverNonce: Unconstrained<bigint>;
+    proof: Unconstrained<string>;
+  }) {
+    this.claims = input.claims;
+    this.outputClaim = input.outputClaim;
+    this.clientNonce = input.clientNonce;
+    this.serverNonce = input.serverNonce;
+    this.proof = input.proof;
+  }
+
+  // static properties derived from precompiling the request
+  compiledRequest(): {
+    claimsType: ProvableType<Claims<Inputs>>;
+    outputClaimType: ProvableType<Output>;
+
+    verificationKey: VerificationKey;
+    maxProofsVerified: 0 | 1 | 2;
+    featureFlags: FeatureFlags;
+  } {
+    throw Error('Must be implemented in subclass');
+  }
+
+  /**
+   * Verify presentation in a provable context.
+   *
+   * Input is the zkApp which this presentation is verified in.
+   *
+   * Pass in the public key, token id and current method of your zkapp to make sure
+   * you don't accept presentations that were intended for a different context.
+   *
+   * Optionally, you can further restrict context by passing in the network and nonce.
+   */
+  verify(context: {
+    publicKey: PublicKey;
+    tokenId: Field;
+    methodName: string;
+    network?: NetworkId;
+    nonce?: UInt32;
+  }): { claims: Claims<Inputs>; outputClaim: Output } {
+    // input/output types
+    let compiled = this.compiledRequest();
+    let { claimsType, outputClaimType } = compiled;
+    let { claims, outputClaim } = this;
+
+    // rederive context
+    let fullContext = computeZkAppContext({
+      type: 'zk-app',
+      verifierIdentity: {
+        publicKey: context.publicKey,
+        tokenId: context.tokenId,
+        network: context.network ?? 'devnet',
+      },
+      action: context.methodName,
+      serverNonce: context.nonce?.value ?? Field(0),
+      clientNonce: this.clientNonce,
+      vkHash: compiled.verificationKey.hash,
+      claims: hashClaimsFromType(claimsType, claims),
+    });
+    let contextHash = hashContext(fullContext);
+
+    // reconstruct proof class
+    // TODO there should be DynamicProof.fromProgram()
+    class PresentationProof extends DynamicProof<PublicInputs<Inputs>, Output> {
+      static publicInputType = NestedProvable.get({
+        context: Field,
+        claims: claimsType,
+      });
+      static publicOutputType = ProvableType.get(outputClaimType);
+      static maxProofsVerified = compiled.maxProofsVerified;
+      static featureFlags = compiled.featureFlags;
+    }
+
+    // witness proof and mark it to be verified
+    let presentationProof: DynamicProof<
+      PublicInputs<Inputs>,
+      Output
+    > = Provable.witness(PresentationProof, () => {
+      return {
+        proof: this.proof.get(),
+        maxProofsVerified: compiled.maxProofsVerified,
+        publicInput: {
+          context: contextHash.toConstant(),
+          claims: Provable.toConstant(claimsType, claims),
+        },
+        publicOutput: Provable.toConstant(outputClaimType, this.outputClaim),
+      };
+    });
+    presentationProof.declare();
+    presentationProof.verify(compiled.verificationKey);
+
+    // check public inputs
+    Provable.assertEqual(
+      claimsType,
+      presentationProof.publicInput.claims,
+      claims
+    );
+    presentationProof.publicInput.context.assertEquals(contextHash);
+    Provable.assertEqual(
+      outputClaimType,
+      presentationProof.publicOutput,
+      outputClaim
+    );
+
+    // return the verified claims
+    return { claims, outputClaim };
+  }
+
+  // provable type representation
+  static get provable(): ProvableType<
+    ProvablePresentation,
+    Presentation<any, any>
+  > {
+    let This = this;
+    let { claimsType, outputClaimType, maxProofsVerified } =
+      this.prototype.compiledRequest();
+    return TypeBuilder.shape({
+      claims: claimsType,
+      outputClaim: outputClaimType,
+      clientNonce: Field,
+      serverNonce: Unconstrained.withEmpty(0n),
+      proof: Unconstrained.withEmpty(''),
+    })
+      .forClass(This)
+      .mapValue<Presentation>({
+        there(p): Presentation {
+          return {
+            version: 'v0',
+            claims: ProvableType.get(claimsType).fromValue(p.claims),
+            outputClaim: ProvableType.get(outputClaimType).fromValue(
+              p.outputClaim
+            ),
+            clientNonce: Field(p.clientNonce),
+            serverNonce: Field(p.serverNonce),
+            proof: { proof: p.proof, maxProofsVerified },
+          };
+        },
+        back(p) {
+          return {
+            claims: ProvableType.get(claimsType).toValue(p.claims),
+            outputClaim: ProvableType.get(outputClaimType).toValue(
+              p.outputClaim
+            ),
+            clientNonce: p.clientNonce.toBigInt(),
+            serverNonce: p.serverNonce.toBigInt(),
+            proof: p.proof.proof,
+          };
+        },
+        distinguish(p) {
+          return p instanceof This;
+        },
+      })
+      .build();
+  }
 }
