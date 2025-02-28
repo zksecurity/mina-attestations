@@ -31,6 +31,8 @@ export {
   supportedTypes,
   serializeProvableType,
   serializeProvable,
+  serializeProvableField,
+  serializeProvablePublicKey,
   serializeNestedProvable,
   serializeNestedProvableValue,
   deserializeProvableType,
@@ -169,6 +171,19 @@ function serializeProvable(value: any): SerializedType & { value: JSONValue } {
       );
       return { ...serializedType, value: value.toJSON() };
   }
+}
+
+// some special cases
+
+function serializeProvableField(value: Field) {
+  return { _type: 'Field', value: value.toJSON() } satisfies SerializedValue;
+}
+
+function serializeProvablePublicKey(value: PublicKey) {
+  return {
+    _type: 'PublicKey',
+    value: value.toJSON(),
+  } satisfies SerializedValue;
 }
 
 function serializeStructType(type: Struct<any>): SerializedType {

@@ -33,11 +33,7 @@ function printPresentationRequest(request: PresentationRequestJSON): string {
     `Output:\n${formatLogicNode(request.spec.outputClaim, 0)}`,
     formatClaimsHumanReadable(request.claims),
     request.inputContext
-      ? `\nContext:\n- Type: ${request.inputContext.type}\n- Action: ${
-          typeof request.inputContext.action === 'string'
-            ? request.inputContext.action
-            : request.inputContext.action.value
-        }\n- Server Nonce: ${request.inputContext.serverNonce.value}`
+      ? `\nContext:\n- Type: ${request.inputContext.type}\n- Action: ${request.inputContext.action}\n- Server Nonce: ${request.inputContext.serverNonce.value}`
       : '',
   ].join('\n');
 

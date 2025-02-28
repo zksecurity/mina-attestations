@@ -3,10 +3,11 @@ import { prefixes } from './constants.ts';
 import { hashString } from './dynamic/dynamic-hash.ts';
 import {
   deserializeProvable,
-  serializeProvable,
-  type SerializedValue,
+  serializeProvableField,
+  serializeProvablePublicKey,
 } from './serialize-provable.ts';
 import { assert } from './util.ts';
+import type { ContextJSON } from './validation.ts';
 
 export {
   computeHttpsContext,
@@ -138,28 +139,11 @@ function networkToField(network: ZkAppIdentity['network']): Field {
 
 // serialization
 
-type SerializedHttpsContext = {
-  type: 'https';
-  action: string;
-  serverNonce: SerializedValue;
-};
-type SerializedZkAppContext = {
-  type: 'zk-app';
-  action: string;
-  serverNonce: SerializedValue;
-  verifierIdentity: {
-    publicKey: SerializedValue;
-    tokenId: SerializedValue;
-    network: 'mainnet' | 'devnet' | { custom: string };
-  };
-};
-type SerializedContext = SerializedHttpsContext | SerializedZkAppContext | null;
-
 function serializeInputContext(
   context: undefined | ZkAppInputContext | HttpsInputContext
-): SerializedContext {
+): ContextJSON {
   if (context === undefined) return null;
-  let serverNonce = serializeProvable(context.serverNonce);
+  let serverNonce = serializeProvableField(context.serverNonce);
   if (context.type === 'https') {
     return { type: context.type, serverNonce, action: context.action };
   }
@@ -170,8 +154,8 @@ function serializeInputContext(
       serverNonce,
       action: context.action,
       verifierIdentity: {
-        publicKey: serializeProvable(publicKey),
-        tokenId: serializeProvable(tokenId),
+        publicKey: serializeProvablePublicKey(publicKey),
+        tokenId: serializeProvableField(tokenId),
         network,
       },
     };
@@ -181,9 +165,7 @@ function serializeInputContext(
   );
 }
 
-function deserializeHttpsContext(
-  context: SerializedContext
-): HttpsInputContext {
+function deserializeHttpsContext(context: ContextJSON): HttpsInputContext {
   assert(context?.type === 'https');
   return {
     type: context.type,
@@ -192,9 +174,7 @@ function deserializeHttpsContext(
   };
 }
 
-function deserializeZkAppContext(
-  context: SerializedContext
-): ZkAppInputContext {
+function deserializeZkAppContext(context: ContextJSON): ZkAppInputContext {
   assert(context?.type === 'zk-app');
   return {
     type: context.type,

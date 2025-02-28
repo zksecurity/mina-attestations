@@ -20,6 +20,7 @@ export type {
   SpecJSON,
   PresentationRequestJSON,
   StoredCredentialJSON,
+  ContextJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -402,7 +403,7 @@ type SpecJSON = z.infer<typeof spec>;
 
 // Context schemas
 
-const HttpsContextSchema = z
+const httpsContext = z
   .object({
     type: z.literal('https'),
     action: z.string(),
@@ -410,15 +411,32 @@ const HttpsContextSchema = z
   })
   .strict();
 
-const ZkAppContextSchema = z
+const networkId = z.union([
+  z.literal('mainnet'),
+  z.literal('devnet'),
+  z.object({ custom: z.string() }),
+]);
+const zkAppIdentity = z
+  .object({
+    publicKey: SerializedPublicKeySchema,
+    tokenId: SerializedFieldSchema,
+    network: networkId,
+  })
+  .strict();
+const zkAppContext = z
   .object({
     type: z.literal('zk-app'),
-    action: SerializedFieldSchema,
+    action: z.string(),
     serverNonce: SerializedFieldSchema,
+    verifierIdentity: zkAppIdentity,
   })
   .strict();
 
-const ContextSchema = z.union([HttpsContextSchema, ZkAppContextSchema]);
+const ContextSchema = z.union([httpsContext, zkAppContext, z.null()]);
+
+type ContextJSON = z.infer<typeof ContextSchema>;
+
+// Presentation Request Schema
 
 const PresentationRequestSchema = z
   .object({
@@ -429,7 +447,7 @@ const PresentationRequestSchema = z
     ]),
     spec,
     claims: z.record(SerializedValueSchema),
-    inputContext: z.union([ContextSchema, z.null()]),
+    inputContext: ContextSchema,
   })
   .strict();
 
