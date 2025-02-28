@@ -21,7 +21,7 @@ import {
   type Input,
   type Claims,
   isCredentialSpec,
-  PublicInputs,
+  type PublicInputs,
 } from './program-spec.ts';
 import { createProgram, type Program } from './program.ts';
 import {
