@@ -165,10 +165,10 @@ function Claim<DataType extends NestedProvable>(
 
 // helpers to extract/recombine portions of the spec inputs
 
-function publicInputTypes({ inputs }: Spec): NestedProvableFor<{
-  context: Field;
-  claims: Record<string, unknown>;
-}> {
+function publicInputTypes({ inputs }: Spec): {
+  context: typeof Field;
+  claims: NestedProvable;
+} {
   let claims: Record<string, NestedProvable> = {};
 
   Object.entries(inputs).forEach(([key, input]) => {

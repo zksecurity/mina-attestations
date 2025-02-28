@@ -20,6 +20,7 @@ import {
   type PublicInputs,
   type UserInputs,
   type PrivateInputs,
+  type Claims,
 } from './program-spec.ts';
 import { Node } from './operation.ts';
 import { NestedProvable } from './nested.ts';
@@ -46,20 +47,26 @@ type Program<Output, Inputs extends Record<string, Input>> = {
       };
     };
   }>;
+
+  claimsType: ProvableType<Claims<Inputs>>;
+  outputClaimType: ProvableType<Output>;
 };
 
 function createProgram<S extends Spec>(
   spec: S
 ): Program<GetSpecData<S>, S['inputs']> {
   // split spec inputs into public and private inputs
-  let PublicInput = NestedProvable.get(publicInputTypes(spec));
-  let PublicOutput = publicOutputType(spec);
+  let inputTypes = publicInputTypes(spec);
+  let claimsType = NestedProvable.get(inputTypes.claims);
+  let outputClaimType = publicOutputType(spec);
+
+  let PublicInput = NestedProvable.get(inputTypes);
   let PrivateInput = NestedProvable.get(privateInputTypes(spec));
 
   let program = ZkProgram({
     name: programName(spec),
     publicInput: PublicInput,
-    publicOutput: PublicOutput,
+    publicOutput: outputClaimType,
     methods: {
       run: {
         privateInputs: [PrivateInput],
@@ -109,6 +116,8 @@ function createProgram<S extends Spec>(
       return result.proof as any;
     },
     program: program as any,
+    claimsType,
+    outputClaimType: outputClaimType as any,
   };
 }
 
