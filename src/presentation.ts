@@ -104,7 +104,14 @@ type CompiledRequest<Output, Inputs extends Record<string, Input>> = {
   program: Program<Output, Inputs>;
   verificationKey: VerificationKey;
 
-  ProvablePresentation: typeof ProvablePresentation<Output, Inputs>;
+  ProvablePresentation: typeof ProvablePresentation<Output, Inputs> & {
+    from(input: Presentation): ProvablePresentation<Output, Inputs>;
+
+    provable: Provable<
+      ProvablePresentation<Output, Inputs>,
+      Presentation<Output, Inputs>
+    >;
+  };
 };
 
 const PresentationRequest = {
@@ -294,6 +301,7 @@ const Presentation = {
     let compiled = {
       claimsType: program.claimsType,
       outputClaimType: program.outputClaimType,
+      tagName: program.program.name,
       verificationKey,
       maxProofsVerified,
       featureFlags,
@@ -303,7 +311,11 @@ const Presentation = {
       compiledRequest() {
         return compiled;
       }
-      static get provable(): ProvableType<
+      static from(input: Presentation<Output, Inputs>) {
+        return this.provable.fromValue(input);
+      }
+
+      static get provable(): Provable<
         ProvablePresentation<Output, Inputs>,
         Presentation<Output, Inputs>
       > {
@@ -736,6 +748,7 @@ class ProvablePresentation<
     claimsType: ProvableType<Claims<Inputs>>;
     outputClaimType: ProvableType<Output>;
 
+    tagName: string;
     verificationKey: VerificationKey;
     maxProofsVerified: 0 | 1 | 2;
     featureFlags: FeatureFlags;
@@ -791,6 +804,10 @@ class ProvablePresentation<
       static publicOutputType = ProvableType.get(outputClaimType);
       static maxProofsVerified = compiled.maxProofsVerified;
       static featureFlags = compiled.featureFlags;
+
+      static tag() {
+        return { name: compiled.tagName };
+      }
     }
 
     // witness proof and mark it to be verified
@@ -799,7 +816,10 @@ class ProvablePresentation<
       Output
     > = Provable.witness(PresentationProof, () => {
       return {
-        proof: this.proof.get(),
+        proof: DynamicProof._proofFromBase64(
+          this.proof.get(),
+          compiled.maxProofsVerified
+        ),
         maxProofsVerified: compiled.maxProofsVerified,
         publicInput: {
           context: contextHash.toConstant(),
@@ -829,7 +849,7 @@ class ProvablePresentation<
   }
 
   // provable type representation
-  static get provable(): ProvableType<
+  static get provable(): Provable<
     ProvablePresentation,
     Presentation<any, any>
   > {
