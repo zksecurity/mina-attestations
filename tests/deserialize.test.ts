@@ -799,7 +799,7 @@ test('deserializePresentationRequest with context', async (t) => {
 
     const context = deserialized.inputContext;
     assert(context, 'Context should exist');
-    assert.deepStrictEqual(context.action, Field(123));
+    assert.deepStrictEqual(context.action, 'myMethod');
     assert.deepStrictEqual(context.serverNonce, Field(789));
 
     let derivedContext: WalletDerivedContext = {

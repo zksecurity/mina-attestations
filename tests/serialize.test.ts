@@ -1007,8 +1007,16 @@ test('serializeInputContext', async (t) => {
 
     assert.deepStrictEqual(serialized, {
       type: 'zk-app',
-      action: { _type: 'Field', value: '456' },
+      action: 'myMethod',
       serverNonce: { _type: 'Field', value: '789' },
+      verifierIdentity: {
+        network: 'devnet',
+        publicKey: {
+          _type: 'PublicKey',
+          value: zkAppIdentity.publicKey.toBase58(),
+        },
+        tokenId: { _type: 'Field', value: '1' },
+      },
     });
 
     const result = ContextSchema.safeParse(serialized);
