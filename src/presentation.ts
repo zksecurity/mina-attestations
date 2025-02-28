@@ -35,14 +35,12 @@ import {
   type HttpsInputContext,
   type HttpsWalletContext,
   type ZkAppInputContext,
+  serializeInputContext,
+  deserializeHttpsContext,
+  deserializeZkAppContext,
 } from './context.ts';
 import { NestedProvable } from './nested.ts';
-import {
-  serializeSpec,
-  serializeInputContext,
-  deserializeSpec,
-  deserializeInputContext,
-} from './serialize-spec.ts';
+import { serializeSpec, deserializeSpec } from './serialize-spec.ts';
 import {
   deserializeNestedProvableValue,
   deserializeProvable,
@@ -233,11 +231,11 @@ function requestFromJson(
     case 'no-context':
       return PresentationRequest.noContext(spec, claims);
     case 'zk-app': {
-      const inputContext: any = deserializeInputContext(request.inputContext);
+      const inputContext = deserializeZkAppContext(request.inputContext);
       return ZkAppRequest({ spec, claims, inputContext });
     }
     case 'https': {
-      const inputContext: any = deserializeInputContext(request.inputContext);
+      const inputContext = deserializeHttpsContext(request.inputContext);
       return HttpsRequest({ spec, claims, inputContext });
     }
     default:

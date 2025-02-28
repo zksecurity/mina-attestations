@@ -1,11 +1,20 @@
 import { Field, PublicKey, Poseidon } from 'o1js';
 import { prefixes } from './constants.ts';
 import { hashString } from './dynamic/dynamic-hash.ts';
+import {
+  deserializeProvable,
+  serializeProvable,
+  type SerializedValue,
+} from './serialize-provable.ts';
+import { assert } from './util.ts';
 
 export {
   computeHttpsContext,
   computeZkAppContext,
   hashContext,
+  serializeInputContext,
+  deserializeHttpsContext,
+  deserializeZkAppContext,
   type ZkAppIdentity,
   type NetworkId,
   type ZkAppInputContext,
@@ -125,4 +134,76 @@ function networkToField(network: ZkAppIdentity['network']): Field {
   if (network === 'mainnet') return Field(0);
   if (network === 'devnet') return Field(1);
   return hashString(network.custom);
+}
+
+// serialization
+
+type SerializedHttpsContext = {
+  type: 'https';
+  action: string;
+  serverNonce: SerializedValue;
+};
+type SerializedZkAppContext = {
+  type: 'zk-app';
+  action: string;
+  serverNonce: SerializedValue;
+  verifierIdentity: {
+    publicKey: SerializedValue;
+    tokenId: SerializedValue;
+    network: 'mainnet' | 'devnet' | { custom: string };
+  };
+};
+type SerializedContext = SerializedHttpsContext | SerializedZkAppContext | null;
+
+function serializeInputContext(
+  context: undefined | ZkAppInputContext | HttpsInputContext
+): SerializedContext {
+  if (context === undefined) return null;
+  let serverNonce = serializeProvable(context.serverNonce);
+  if (context.type === 'https') {
+    return { type: context.type, serverNonce, action: context.action };
+  }
+  if (context.type === 'zk-app') {
+    let { publicKey, tokenId, network } = context.verifierIdentity;
+    return {
+      type: context.type,
+      serverNonce,
+      action: context.action,
+      verifierIdentity: {
+        publicKey: serializeProvable(publicKey),
+        tokenId: serializeProvable(tokenId),
+        network,
+      },
+    };
+  }
+  throw Error(
+    `Unsupported context type: ${(context satisfies never as any).type}`
+  );
+}
+
+function deserializeHttpsContext(
+  context: SerializedContext
+): HttpsInputContext {
+  assert(context?.type === 'https');
+  return {
+    type: context.type,
+    action: context.action,
+    serverNonce: deserializeProvable(context.serverNonce),
+  };
+}
+
+function deserializeZkAppContext(
+  context: SerializedContext
+): ZkAppInputContext {
+  assert(context?.type === 'zk-app');
+  return {
+    type: context.type,
+    action: context.action,
+    serverNonce: deserializeProvable(context.serverNonce),
+    verifierIdentity: {
+      publicKey: deserializeProvable(context.verifierIdentity.publicKey),
+      tokenId: deserializeProvable(context.verifierIdentity.tokenId),
+      network: context.verifierIdentity.network,
+    },
+  };
 }

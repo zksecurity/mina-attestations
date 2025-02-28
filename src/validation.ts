@@ -33,14 +33,33 @@ const JsonSchema: z.ZodType<Json> = z.lazy(() =>
 
 const PublicKeySchema = z.string().length(55).startsWith('B62');
 
-const ProofTypeSchema: z.ZodType<Record<string, any>> = z.lazy(() =>
+const maxProofsVerified = z.union([z.literal(0), z.literal(1), z.literal(2)]);
+const booleanOrNull = z.boolean().or(z.null());
+const featureFlags = z.object({
+  rangeCheck0: booleanOrNull,
+  rangeCheck1: booleanOrNull,
+  foreignFieldAdd: booleanOrNull,
+  foreignFieldMul: booleanOrNull,
+  xor: booleanOrNull,
+  rot: booleanOrNull,
+  lookup: booleanOrNull,
+  runtimeTables: booleanOrNull,
+});
+
+const ProofTypeSchema: z.ZodType<{
+  name: string;
+  publicInput: SerializedType;
+  publicOutput: SerializedType;
+  maxProofsVerified: z.infer<typeof maxProofsVerified>;
+  featureFlags: z.infer<typeof featureFlags>;
+}> = z.lazy(() =>
   z
     .object({
       name: z.string(),
       publicInput: SerializedTypeSchema,
       publicOutput: SerializedTypeSchema,
-      maxProofsVerified: z.number(),
-      featureFlags: z.record(z.any()),
+      maxProofsVerified,
+      featureFlags,
     })
     .strict()
 );
@@ -325,19 +344,6 @@ const NodeSchema: z.ZodType<NodeJSON> = z.lazy(() =>
 );
 
 // Input Schema
-
-const maxProofsVerified = z.union([z.literal(0), z.literal(1), z.literal(2)]);
-const booleanOrNull = z.boolean().or(z.null());
-const featureFlags = z.object({
-  rangeCheck0: booleanOrNull,
-  rangeCheck1: booleanOrNull,
-  foreignFieldAdd: booleanOrNull,
-  foreignFieldMul: booleanOrNull,
-  xor: booleanOrNull,
-  rot: booleanOrNull,
-  lookup: booleanOrNull,
-  runtimeTables: booleanOrNull,
-});
 
 const importedWitnessSpec = z.object({
   type: z.literal('imported'),

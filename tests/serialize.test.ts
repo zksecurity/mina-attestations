@@ -6,8 +6,6 @@ import {
   serializeNode,
   serializeInput,
   serializeSpec,
-  serializeInputContext,
-  deserializeInputContext,
 } from '../src/serialize-spec.ts';
 import { Bool, Field, PublicKey, Signature, UInt32, UInt64, UInt8 } from 'o1js';
 import { Credential } from '../src/credential-index.ts';
@@ -21,7 +19,12 @@ import {
   InputSchema,
   NodeSchema,
 } from '../src/validation.ts';
-import type { ZkAppInputContext } from '../src/context.ts';
+import {
+  type ZkAppInputContext,
+  serializeInputContext,
+  deserializeHttpsContext,
+  deserializeZkAppContext,
+} from '../src/context.ts';
 import { zkAppIdentity } from './test-utils.ts';
 
 test('Serialize Inputs', async (t) => {
@@ -1015,7 +1018,7 @@ test('serializeInputContext', async (t) => {
         (result.success ? '' : JSON.stringify(result.error.issues, null, 2))
     );
 
-    const deserialized = deserializeInputContext(serialized);
+    const deserialized = deserializeZkAppContext(serialized);
     assert.deepStrictEqual(deserialized, context);
 
     const reserialized = serializeInputContext(deserialized);
@@ -1044,7 +1047,7 @@ test('serializeInputContext', async (t) => {
         (result.success ? '' : JSON.stringify(result.error.issues, null, 2))
     );
 
-    const deserialized = deserializeInputContext(serialized);
+    const deserialized = deserializeHttpsContext(serialized);
     assert.deepStrictEqual(deserialized, context);
 
     const reserialized = serializeInputContext(deserialized);
