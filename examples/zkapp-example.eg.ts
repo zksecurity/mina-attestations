@@ -4,27 +4,21 @@
 import {
   SmartContract,
   Bytes,
-  Field,
   Int64,
   UInt64,
-  method,
   declareMethods,
   Mina,
-  UInt32,
+  TokenId,
 } from 'o1js';
 import {
-  Spec,
   Operation,
   Claim,
   Credential,
   Presentation,
   PresentationRequest,
-  assert,
   DynamicString,
-  DynamicArray,
   DynamicRecord,
   Schema,
-  hashDynamic,
   PresentationSpec,
 } from 'mina-attestations';
 import {
@@ -112,6 +106,7 @@ let spec = PresentationSpec(
 let precompiled = await Presentation.precompile(spec);
 
 // this class defines the zkApp input type
+// using this class in a zkApp will hard-code the particular presentation spec that it verifies
 class ProvablePresentation extends precompiled.ProvablePresentation {}
 
 let info = (await precompiled.program.program.analyzeMethods()).run;
@@ -121,13 +116,14 @@ console.log('✅ VERIFIER: compiled presentation spec');
 
 class ZkAppVerifier extends SmartContract {
   async verifyPresentation(presentation: ProvablePresentation) {
+    // verify the presentation, and receive its claims for further validation and usage
     let { claims, outputClaim } = presentation.verify({
       publicKey: this.address,
       tokenId: this.tokenId,
       methodName: 'verifyPresentation',
     });
 
-    // check that `createdAt` is recent by adding a precondition on the current slot
+    // check that `createdAt` is a recent timestamp, by adding a precondition on the current slot.
     // we have to convert timestamp (in ms) to 3-minute slots since genesis
     let { createdAt } = claims;
     const genesisTimestamp = +new Date('2024-06-04T16:00:00.000000-08:00');
@@ -150,7 +146,7 @@ declareMethods(ZkAppVerifier, {
 await ZkAppVerifier.compile();
 let cs = await ZkAppVerifier.analyzeMethods();
 console.log('zkApp rows', cs.verifyPresentation?.rows);
-console.log('✅ VERIFIER: compiled zkapp');
+console.log('✅ VERIFIER: compiled zkapp that verifies the presentation');
 
 // ZKAPP VERIFIER, outside circuit: request a presentation
 
@@ -158,7 +154,9 @@ let request = PresentationRequest.zkAppFromCompiled(
   precompiled,
   { createdAt: UInt64.from(Date.now()) },
   {
+    // this added context ensures that the presentation can't be used outside the target zkApp
     publicKey: zkAppAddress,
+    tokenId: TokenId.default,
     methodName: 'verifyPresentation',
   }
 );
@@ -194,12 +192,11 @@ console.log(
 let presentation2 = Presentation.fromJSON(serialized);
 let Local = await Mina.LocalBlockchain();
 Mina.setActiveInstance(Local);
-let verifier = new ZkAppVerifier(zkAppAddress);
 
-let deployer = Local.testAccounts[0];
-
-let tx = await Mina.transaction(deployer, () =>
-  verifier.verifyPresentation(ProvablePresentation.from(presentation2))
+let tx = await Mina.transaction(() =>
+  new ZkAppVerifier(zkAppAddress).verifyPresentation(
+    ProvablePresentation.from(presentation2)
+  )
 );
 await tx.prove();
 
