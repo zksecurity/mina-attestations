@@ -4,8 +4,10 @@ import {
   Poseidon,
   PrivateKey,
   Provable,
+  PublicKey,
   Signature,
   Struct,
+  UInt32,
   VerificationKey,
   verify,
 } from 'o1js';
@@ -28,6 +30,7 @@ import {
   computeHttpsContext,
   computeZkAppContext,
   type ZkAppIdentity,
+  type NetworkId,
 } from './context.ts';
 import { NestedProvable } from './nested.ts';
 import {
@@ -59,6 +62,10 @@ export {
 
 type PresentationRequestType = 'no-context' | 'zk-app' | 'https';
 
+type InputContext = {
+  action: string;
+  serverNonce: Field;
+};
 type WalletDerivedContext = {
   vkHash: Field;
   claims: Field;
@@ -114,7 +121,7 @@ const PresentationRequest = {
       spec,
       claims,
       program: createProgram(spec),
-      inputContext: { type: 'https', ...context, serverNonce },
+      inputContext: { type: 'https', action: context.action, serverNonce },
     });
   },
 
@@ -130,39 +137,64 @@ const PresentationRequest = {
       claims,
       program: compiled.program,
       verificationKey: compiled.verificationKey,
-      inputContext: { type: 'https', ...context, serverNonce },
+      inputContext: { type: 'https', action: context.action, serverNonce },
     });
   },
 
   zkApp<Output, Inputs extends Record<string, Input>>(
     spec: Spec<Output, Inputs>,
     claims: Claims<Inputs>,
-    context: { action: Field }
+    context: {
+      publicKey: PublicKey;
+      tokenId?: Field;
+      methodName: string;
+      network: NetworkId;
+      nonce?: UInt32;
+    }
   ) {
-    // generate random nonce on "the server"
-    let serverNonce = Field.random();
-
     return ZkAppRequest({
       spec,
       claims,
       program: createProgram(spec),
-      inputContext: { type: 'zk-app', ...context, serverNonce },
+      inputContext: {
+        type: 'zk-app',
+        verifierIdentity: {
+          publicKey: context.publicKey,
+          tokenId: context.tokenId ?? Field(0),
+          network: context.network,
+        },
+        action: context.methodName,
+        serverNonce: context.nonce?.value ?? Field(0),
+      },
     });
   },
 
   zkAppFromCompiled<Output, Inputs extends Record<string, Input>>(
     compiled: CompiledRequest<Output, Inputs>,
     claims: Claims<Inputs>,
-    context: { action: Field }
+    context: {
+      publicKey: PublicKey;
+      tokenId?: Field;
+      methodName: string;
+      network: NetworkId;
+      nonce?: UInt32;
+    }
   ) {
-    let serverNonce = Field.random();
-
     return ZkAppRequest({
       spec: compiled.spec,
       claims,
       program: compiled.program,
       verificationKey: compiled.verificationKey,
-      inputContext: { type: 'zk-app', ...context, serverNonce },
+      inputContext: {
+        type: 'zk-app',
+        verifierIdentity: {
+          publicKey: context.publicKey,
+          tokenId: context.tokenId ?? Field(0),
+          network: context.network,
+        },
+        action: context.methodName,
+        serverNonce: context.nonce?.value ?? Field(0),
+      },
     });
   },
 
@@ -557,19 +589,19 @@ type RequestFromType<
   ? HttpsRequest<Output, Inputs>
   : never;
 
+type HttpsInputContext = InputContext & {
+  type: 'https';
+};
+
+type ZkAppInputContext = InputContext & {
+  type: 'zk-app';
+  verifierIdentity: ZkAppIdentity;
+};
+
 type NoContextRequest<
   Output = any,
   Inputs extends Record<string, Input> = Record<string, Input>
 > = PresentationRequest<'no-context', Output, Inputs, undefined, undefined>;
-
-type BaseInputContext = {
-  serverNonce: Field;
-};
-
-type HttpsInputContext = BaseInputContext & {
-  type: 'https';
-  action: string;
-};
 
 type HttpsRequest<
   Output = any,
@@ -581,6 +613,11 @@ type HttpsRequest<
   HttpsInputContext,
   { verifierIdentity: string }
 >;
+
+type ZkAppRequest<
+  Output = any,
+  Inputs extends Record<string, Input> = Record<string, Input>
+> = PresentationRequest<'zk-app', Output, Inputs, ZkAppInputContext, undefined>;
 
 function HttpsRequest<Output, Inputs extends Record<string, Input>>(request: {
   spec: Spec<Output, Inputs>;
@@ -604,22 +641,6 @@ function HttpsRequest<Output, Inputs extends Record<string, Input>>(request: {
   };
 }
 
-type ZkAppInputContext = BaseInputContext & {
-  type: 'zk-app';
-  action: Field;
-};
-
-type ZkAppRequest<
-  Output = any,
-  Inputs extends Record<string, Input> = Record<string, Input>
-> = PresentationRequest<
-  'zk-app',
-  Output,
-  Inputs,
-  ZkAppInputContext,
-  { verifierIdentity: ZkAppIdentity }
->;
-
 function ZkAppRequest<Output, Inputs extends Record<string, Input>>(request: {
   spec: Spec<Output, Inputs>;
   claims: Claims<Inputs>;
@@ -631,10 +652,9 @@ function ZkAppRequest<Output, Inputs extends Record<string, Input>>(request: {
     type: 'zk-app',
     ...request,
 
-    deriveContext(inputContext, walletContext, derivedContext) {
+    deriveContext(inputContext, _walletContext: undefined, derivedContext) {
       const context = computeZkAppContext({
         ...inputContext,
-        ...walletContext,
         ...derivedContext,
       });
       return hashContext(context);

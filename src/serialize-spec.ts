@@ -268,38 +268,69 @@ function deserializeNode(root: any, node: NodeJSON): Node {
 
 type SerializedContext =
   | { type: 'https'; action: string; serverNonce: SerializedValue }
-  | { type: 'zk-app'; action: SerializedValue; serverNonce: SerializedValue };
+  | {
+      type: 'zk-app';
+      action: string;
+      serverNonce: SerializedValue;
+      verifierIdentity: {
+        publicKey: SerializedValue;
+        tokenId: SerializedValue;
+        network: 'mainnet' | 'devnet' | { custom: string };
+      };
+    }
+  | null;
 
 function serializeInputContext(
   context: undefined | ZkAppInputContext | HttpsInputContext
-): null | SerializedContext {
+): SerializedContext {
   if (context === undefined) return null;
-
   let serverNonce = serializeProvable(context.serverNonce);
-
-  switch (context.type) {
-    case 'zk-app':
-      let action = serializeProvable(context.action);
-      return { type: context.type, serverNonce, action };
-    case 'https':
-      return { type: context.type, serverNonce, action: context.action };
-    default:
-      throw Error(`Unsupported context type: ${(context as any).type}`);
+  if (context.type === 'https') {
+    return { type: context.type, serverNonce, action: context.action };
   }
+  if (context.type === 'zk-app') {
+    let { publicKey, tokenId, network } = context.verifierIdentity;
+    return {
+      type: context.type,
+      serverNonce,
+      action: context.action,
+      verifierIdentity: {
+        publicKey: serializeProvable(publicKey),
+        tokenId: serializeProvable(tokenId),
+        network,
+      },
+    };
+  }
+  throw Error(
+    `Unsupported context type: ${(context satisfies never as any).type}`
+  );
 }
-function deserializeInputContext(context: null | SerializedContext) {
+function deserializeInputContext(
+  context: SerializedContext
+): undefined | ZkAppInputContext | HttpsInputContext {
   if (context === null) return undefined;
-  return {
-    type: context.type,
-    action:
-      context.type === 'zk-app'
-        ? deserializeProvable({ _type: 'Field', value: context.action.value })
-        : context.action,
-    serverNonce: deserializeProvable({
-      _type: 'Field',
-      value: context.serverNonce.value,
-    }),
-  };
+  if (context.type === 'https') {
+    return {
+      type: context.type,
+      action: context.action,
+      serverNonce: deserializeProvable(context.serverNonce),
+    };
+  }
+  if (context.type === 'zk-app') {
+    return {
+      type: context.type,
+      action: context.action,
+      serverNonce: deserializeProvable(context.serverNonce),
+      verifierIdentity: {
+        publicKey: deserializeProvable(context.verifierIdentity.publicKey),
+        tokenId: deserializeProvable(context.verifierIdentity.tokenId),
+        network: context.verifierIdentity.network,
+      },
+    };
+  }
+  throw Error(
+    `Unsupported context type: ${(context satisfies never as any).type}`
+  );
 }
 
 async function hashSpec(serializedSpec: string): Promise<string> {

@@ -7,6 +7,7 @@ export {
   computeZkAppContext,
   hashContext,
   type ZkAppIdentity,
+  type NetworkId,
 };
 
 type ContextType = 'zk-app' | 'https';
@@ -19,16 +20,18 @@ type BaseContext = {
   claims: Field;
 };
 
+type NetworkId = 'mainnet' | 'devnet' | { custom: string };
+
 type ZkAppIdentity = {
-  address: PublicKey;
+  publicKey: PublicKey;
   tokenId: Field;
-  network: 'mainnet' | 'devnet' | { custom: string };
+  network: NetworkId;
 };
 
 type ZkAppContext = BaseContext & {
   type: 'zk-app';
   verifierIdentity: ZkAppIdentity;
-  action: Field;
+  action: string;
 };
 
 type HttpsContext = BaseContext & {
@@ -50,9 +53,9 @@ function computeNonce(serverNonce: Field, clientNonce: Field): Field {
   return Poseidon.hashWithPrefix(prefixes.nonce, [serverNonce, clientNonce]);
 }
 
-function computeHttpsContext(input: HttpsContext): ContextOutput {
+function computeHttpsContext(input: Omit<HttpsContext, 'type'>): ContextOutput {
   return {
-    type: input.type,
+    type: 'https',
     vkHash: input.vkHash,
     nonce: computeNonce(input.serverNonce, input.clientNonce),
     verifierIdentity: hashString(input.verifierIdentity),
@@ -61,19 +64,20 @@ function computeHttpsContext(input: HttpsContext): ContextOutput {
   };
 }
 
-function computeZkAppContext(input: ZkAppContext): ContextOutput {
+function computeZkAppContext(input: Omit<ZkAppContext, 'type'>): ContextOutput {
   return {
-    type: input.type,
+    type: 'zk-app',
     vkHash: input.vkHash,
     nonce: computeNonce(input.serverNonce, input.clientNonce),
     verifierIdentity: hashZkAppIdentity(input.verifierIdentity),
-    action: input.action,
+    action: hashString(input.action),
     claims: input.claims,
   };
 }
 
 function hashContext(input: ContextOutput): Field {
-  return Poseidon.hashWithPrefix(`${prefixes.context}:${input.type}`, [
+  return Poseidon.hashWithPrefix(prefixes.context, [
+    hashString(input.type),
     input.vkHash,
     input.nonce,
     input.verifierIdentity,
@@ -85,7 +89,7 @@ function hashContext(input: ContextOutput): Field {
 function hashZkAppIdentity(identity: ZkAppIdentity): Field {
   return Poseidon.hashWithPrefix(prefixes.zkappIdentity, [
     networkToField(identity.network),
-    ...identity.address.toFields(),
+    ...identity.publicKey.toFields(),
     identity.tokenId,
   ]);
 }
