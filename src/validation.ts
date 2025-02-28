@@ -21,6 +21,7 @@ export type {
   PresentationRequestJSON,
   StoredCredentialJSON,
   ContextJSON,
+  ZkAppIdentityJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -423,6 +424,9 @@ const zkAppIdentity = z
     network: networkId,
   })
   .strict();
+
+type ZkAppIdentityJSON = z.infer<typeof zkAppIdentity>;
+
 const zkAppContext = z
   .object({
     type: z.literal('zk-app'),
