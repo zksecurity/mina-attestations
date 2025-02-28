@@ -9,7 +9,6 @@ import {
   PublicKey,
   Signature,
   PrivateKey,
-  DynamicProof,
   Undefined,
   Struct,
   FeatureFlags,
@@ -35,11 +34,15 @@ import { withOwner } from '../src/credential.ts';
 import {
   HttpsRequest,
   PresentationRequest,
-  type WalletDerivedContext,
   ZkAppRequest,
 } from '../src/presentation.ts';
-import { zkAppAddress } from './test-utils.ts';
-import { computeContext, generateContext } from '../src/context.ts';
+import { zkAppIdentity } from './test-utils.ts';
+import {
+  computeHttpsContext,
+  computeZkAppContext,
+  hashContext,
+  type WalletDerivedContext,
+} from '../src/context.ts';
 import {
   deserializeProvable,
   deserializeProvableType,
@@ -766,8 +769,9 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: { targetAge: Field(18) },
       inputContext: {
         type: 'zk-app',
-        action: Field(123), // Mock method ID + args hash
+        action: 'myMethod',
         serverNonce: Field(789),
+        verifierIdentity: zkAppIdentity,
       },
     });
 
@@ -795,7 +799,7 @@ test('deserializePresentationRequest with context', async (t) => {
 
     const context = deserialized.inputContext;
     assert(context, 'Context should exist');
-    assert.deepStrictEqual(context.action, Field(123));
+    assert.deepStrictEqual(context.action, 'myMethod');
     assert.deepStrictEqual(context.serverNonce, Field(789));
 
     let derivedContext: WalletDerivedContext = {
@@ -804,17 +808,15 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: Field(456),
     };
 
-    const originalContext = generateContext(
-      computeContext({
+    const originalContext = hashContext(
+      computeZkAppContext({
         ...originalRequest.inputContext,
-        verifierIdentity: zkAppAddress,
         ...derivedContext,
       })
     );
-    const deserializedContext = generateContext(
-      computeContext({
-        ...originalRequest.inputContext,
-        verifierIdentity: zkAppAddress,
+    const deserializedContext = hashContext(
+      computeZkAppContext({
+        ...deserialized.inputContext,
         ...derivedContext,
       })
     );
@@ -867,15 +869,15 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: Field(456),
     };
 
-    const originalContext = generateContext(
-      computeContext({
+    const originalContext = hashContext(
+      computeHttpsContext({
         ...originalRequest.inputContext,
         verifierIdentity: serverUrl,
         ...derivedContext,
       })
     );
-    const deserializedContext = generateContext(
-      computeContext({
+    const deserializedContext = hashContext(
+      computeHttpsContext({
         ...originalRequest.inputContext,
         verifierIdentity: serverUrl,
         ...derivedContext,

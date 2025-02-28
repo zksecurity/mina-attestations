@@ -20,6 +20,8 @@ export type {
   SpecJSON,
   PresentationRequestJSON,
   StoredCredentialJSON,
+  ContextJSON,
+  ZkAppIdentityJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -33,14 +35,33 @@ const JsonSchema: z.ZodType<Json> = z.lazy(() =>
 
 const PublicKeySchema = z.string().length(55).startsWith('B62');
 
-const ProofTypeSchema: z.ZodType<Record<string, any>> = z.lazy(() =>
+const maxProofsVerified = z.union([z.literal(0), z.literal(1), z.literal(2)]);
+const booleanOrNull = z.boolean().or(z.null());
+const featureFlags = z.object({
+  rangeCheck0: booleanOrNull,
+  rangeCheck1: booleanOrNull,
+  foreignFieldAdd: booleanOrNull,
+  foreignFieldMul: booleanOrNull,
+  xor: booleanOrNull,
+  rot: booleanOrNull,
+  lookup: booleanOrNull,
+  runtimeTables: booleanOrNull,
+});
+
+const ProofTypeSchema: z.ZodType<{
+  name: string;
+  publicInput: SerializedType;
+  publicOutput: SerializedType;
+  maxProofsVerified: z.infer<typeof maxProofsVerified>;
+  featureFlags: z.infer<typeof featureFlags>;
+}> = z.lazy(() =>
   z
     .object({
       name: z.string(),
       publicInput: SerializedTypeSchema,
       publicOutput: SerializedTypeSchema,
-      maxProofsVerified: z.number(),
-      featureFlags: z.record(z.any()),
+      maxProofsVerified,
+      featureFlags,
     })
     .strict()
 );
@@ -326,19 +347,6 @@ const NodeSchema: z.ZodType<NodeJSON> = z.lazy(() =>
 
 // Input Schema
 
-const maxProofsVerified = z.union([z.literal(0), z.literal(1), z.literal(2)]);
-const booleanOrNull = z.boolean().or(z.null());
-const featureFlags = z.object({
-  rangeCheck0: booleanOrNull,
-  rangeCheck1: booleanOrNull,
-  foreignFieldAdd: booleanOrNull,
-  foreignFieldMul: booleanOrNull,
-  xor: booleanOrNull,
-  rot: booleanOrNull,
-  lookup: booleanOrNull,
-  runtimeTables: booleanOrNull,
-});
-
 const importedWitnessSpec = z.object({
   type: z.literal('imported'),
   publicInputType: SerializedTypeSchema,
@@ -396,7 +404,7 @@ type SpecJSON = z.infer<typeof spec>;
 
 // Context schemas
 
-const HttpsContextSchema = z
+const httpsContext = z
   .object({
     type: z.literal('https'),
     action: z.string(),
@@ -404,15 +412,35 @@ const HttpsContextSchema = z
   })
   .strict();
 
-const ZkAppContextSchema = z
+const networkId = z.union([
+  z.literal('mainnet'),
+  z.literal('devnet'),
+  z.object({ custom: z.string() }),
+]);
+const zkAppIdentity = z
   .object({
-    type: z.literal('zk-app'),
-    action: SerializedFieldSchema,
-    serverNonce: SerializedFieldSchema,
+    publicKey: SerializedPublicKeySchema,
+    tokenId: SerializedFieldSchema,
+    network: networkId,
   })
   .strict();
 
-const ContextSchema = z.union([HttpsContextSchema, ZkAppContextSchema]);
+type ZkAppIdentityJSON = z.infer<typeof zkAppIdentity>;
+
+const zkAppContext = z
+  .object({
+    type: z.literal('zk-app'),
+    action: z.string(),
+    serverNonce: SerializedFieldSchema,
+    verifierIdentity: zkAppIdentity,
+  })
+  .strict();
+
+const ContextSchema = z.union([httpsContext, zkAppContext, z.null()]);
+
+type ContextJSON = z.infer<typeof ContextSchema>;
+
+// Presentation Request Schema
 
 const PresentationRequestSchema = z
   .object({
@@ -423,7 +451,7 @@ const PresentationRequestSchema = z
     ]),
     spec,
     claims: z.record(SerializedValueSchema),
-    inputContext: z.union([ContextSchema, z.null()]),
+    inputContext: ContextSchema,
   })
   .strict();
 

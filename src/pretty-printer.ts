@@ -1,4 +1,3 @@
-import type { PresentationRequestType } from './presentation.ts';
 import type { SerializedType, SerializedValue } from './serialize-provable.ts';
 import type { JSONValue } from './types.ts';
 import type {
@@ -33,40 +32,35 @@ function printPresentationRequest(request: PresentationRequestJSON): string {
     `Output:\n${formatLogicNode(request.spec.outputClaim, 0)}`,
     formatClaimsHumanReadable(request.claims),
     request.inputContext
-      ? `\nContext:\n- Type: ${request.inputContext.type}\n- Action: ${
-          typeof request.inputContext.action === 'string'
-            ? request.inputContext.action
-            : request.inputContext.action.value
-        }\n- Server Nonce: ${request.inputContext.serverNonce.value}`
-      : '',
+      ? `\nContext:\n- Type: ${request.inputContext.type}\n- Action: ${request.inputContext.action}\n- Server Nonce: ${request.inputContext.serverNonce.value}`
+      : 'WARNING: This request is not bound to any context',
   ].join('\n');
 
   return formatted;
 }
 
 function printVerifierIdentity(
-  type: PresentationRequestType,
-  verifierIdentity:
-    | string
-    | { address: string; tokenId: string; network: 'devnet' | 'mainnet' }
+  request: PresentationRequestJSON,
+  origin: string
 ): string {
-  let verifierUrl =
-    type === 'zk-app' &&
-    typeof verifierIdentity === 'object' &&
-    verifierIdentity !== null
-      ? `minascan.io/${verifierIdentity.network}/account/${verifierIdentity.address}`
-      : undefined;
+  if (request.type === 'no-context') {
+    return '\nWARNING: No verifier identity provided\n';
+  }
+  if (request.type === 'https') {
+    return `\nVerifier Identity: ${origin}\n`;
+  }
 
-  return [
-    verifierIdentity !== undefined
-      ? `\nVerifier Identity: ${
-          type === 'zk-app'
-            ? JSON.stringify(verifierIdentity, null, 2)
-            : verifierIdentity
-        }`
-      : '',
-    verifierUrl ? `\nSee verifier on Minascan: https://${verifierUrl}` : '',
-  ].join('\n');
+  // for zkapp requests, verifier identity is contained in the presentation request
+  if (request.inputContext?.type !== 'zk-app') {
+    return '\nWARNING: Invalid request!\n';
+  }
+
+  let { verifierIdentity } = request.inputContext;
+  let verifierUrl = `minascan.io/${verifierIdentity.network}/account/${verifierIdentity.publicKey}`;
+
+  return `\nVerifier Identity: ${JSON.stringify(verifierIdentity, null, 2)}
+
+See verifying zkApp on Minascan: https://${verifierUrl}\n`;
 }
 
 function simplifyCredentialData(storedCredential: StoredCredentialJSON) {

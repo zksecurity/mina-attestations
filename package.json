@@ -1,6 +1,6 @@
 {
   "name": "mina-attestations",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "workspaces": [
     "examples/web-demo",
     "examples/web-demo/api-server"
@@ -50,12 +50,14 @@
     "README.md",
     "LICENSE"
   ],
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.272",
     "@types/node": "^22.5.5",
     "prettier": "^2.3.2",
-    "typescript": "^5.7.3",
-    "zod": "^3.24.1"
+    "typescript": "^5.7.3"
   },
   "peerDependencies": {
     "o1js": "https://pkg.pr.new/o1-labs/o1js@1dc90e4"

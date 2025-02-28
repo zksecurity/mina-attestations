@@ -67,15 +67,10 @@ The remainder of this README contains documentation aimed at developers, startin
 Apart from reading the docs, have a look at our full code examples:
 
 - [examples/unique-hash.eg.ts](https://github.com/zksecurity/mina-attestations/blob/main/examples/unique-hash.eg.ts) - A good introduction, this example simulates the entire flow between issuer, user wallet and verifier within a single script, that is heavily commented to explain the individual steps.
+- [examples/zkapp-example.eg.ts](https://github.com/zksecurity/mina-attestations/blob/main/examples/zkapp-example.eg.ts) - Similar example as the one above, but where the presentation is verified in a Mina zkApp
 - [examples/web-demo](https://github.com/zksecurity/mina-attestations/blob/main/examples/web-demo) - Source code for [mina-attestations-demo.zksecurity.xyz](https://mina-attestations-demo.zksecurity.xyz). It includes both frontend and backend and can be useful as a reference for integrating `mina-attestations` in a real application. Caveat: The example mixes two different entities, issuer and verifier, in a single web app.
 
 > 🧑‍🎓 In the docs that follow, we occasionally assume familiarity with zk programming concepts. If you don't know what a circuit or a "public input" are, we recommend checking out the [o1js docs](https://docs.minaprotocol.com/zkapps/o1js) or a similar resource, to build background understanding. Nonetheless, our library should be easy to use even without that understanding.
-
-<!-- One of the main contributions is a DSL to specify the attestations a verifier wants to make about a user. -->
-
-<!--
-Under the hood, private attestations rely on [zero-knowledge proofs](https://en.wikipedia.org/wiki/Zero-knowledge_proof).
-Mina Attestations builds on top of [o1js](https://github.com/o1-labs/o1js), a general-purpose zk framework for TypeScript. -->
 
 ## Code example: Defining a private attestation <a id="operations-dsl"></a>
 
@@ -171,7 +166,6 @@ The request also has to contain the input claims (here: `createdAt`), as there i
 Another point is that the user, when approving the request, should be able to understand what data they share. To make this possible, we implemented a pretty-printer that converts presentation specs into human-readable pseudo-code:
 
 <!-- TODO would be nice to show a screenshot of the Pallad prompt here -->
-<!-- TODO make sure this is the actual output -->
 
 ```
 credential.nationality ≠ "United States"
@@ -357,6 +351,8 @@ const PassportCredential = await Credential.Imported.fromMethod(
     },
   },
   async ({ privateInput }) => {
+    // here, you can put any o1js circuit
+    // (to make this example real, we would need a circuit that verifies a passport)
     return privateInput;
   }
 );

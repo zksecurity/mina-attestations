@@ -6,8 +6,6 @@ import {
   serializeNode,
   serializeInput,
   serializeSpec,
-  serializeInputContext,
-  deserializeInputContext,
 } from '../src/serialize-spec.ts';
 import { Bool, Field, PublicKey, Signature, UInt32, UInt64, UInt8 } from 'o1js';
 import { Credential } from '../src/credential-index.ts';
@@ -21,6 +19,13 @@ import {
   InputSchema,
   NodeSchema,
 } from '../src/validation.ts';
+import {
+  type ZkAppInputContext,
+  serializeInputContext,
+  deserializeHttpsContext,
+  deserializeZkAppContext,
+} from '../src/context.ts';
+import { zkAppIdentity } from './test-utils.ts';
 
 test('Serialize Inputs', async (t) => {
   await t.test('should serialize basic types correctly', () => {
@@ -991,9 +996,10 @@ test('Serialize spec with owner and issuer nodes', async (t) => {
 
 test('serializeInputContext', async (t) => {
   await t.test('should serialize zk-app context', () => {
-    const context = {
+    const context: ZkAppInputContext = {
       type: 'zk-app' as const,
-      action: Field(456),
+      action: 'myMethod',
+      verifierIdentity: zkAppIdentity,
       serverNonce: Field(789),
     };
 
@@ -1001,8 +1007,16 @@ test('serializeInputContext', async (t) => {
 
     assert.deepStrictEqual(serialized, {
       type: 'zk-app',
-      action: { _type: 'Field', value: '456' },
+      action: 'myMethod',
       serverNonce: { _type: 'Field', value: '789' },
+      verifierIdentity: {
+        network: 'devnet',
+        publicKey: {
+          _type: 'PublicKey',
+          value: zkAppIdentity.publicKey.toBase58(),
+        },
+        tokenId: { _type: 'Field', value: '1' },
+      },
     });
 
     const result = ContextSchema.safeParse(serialized);
@@ -1012,7 +1026,7 @@ test('serializeInputContext', async (t) => {
         (result.success ? '' : JSON.stringify(result.error.issues, null, 2))
     );
 
-    const deserialized = deserializeInputContext(serialized);
+    const deserialized = deserializeZkAppContext(serialized);
     assert.deepStrictEqual(deserialized, context);
 
     const reserialized = serializeInputContext(deserialized);
@@ -1041,7 +1055,7 @@ test('serializeInputContext', async (t) => {
         (result.success ? '' : JSON.stringify(result.error.issues, null, 2))
     );
 
-    const deserialized = deserializeInputContext(serialized);
+    const deserialized = deserializeHttpsContext(serialized);
     assert.deepStrictEqual(deserialized, context);
 
     const reserialized = serializeInputContext(deserialized);

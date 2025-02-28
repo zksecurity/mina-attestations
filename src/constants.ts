@@ -7,4 +7,5 @@ const prefixes = {
   issuerImported: `${pre}:imported`,
   context: `${pre}:context`,
   nonce: `${pre}:nonce`,
+  zkappIdentity: `${pre}:zkapp-identity`,
 };

@@ -1,10 +1,6 @@
 import { Claim, Constant, Spec, type Input } from './program-spec.ts';
 import { Node } from './operation.ts';
 import {
-  type HttpsInputContext,
-  type ZkAppInputContext,
-} from './presentation.ts';
-import {
   type SerializedValue,
   serializeNestedProvable,
   serializeProvable,
@@ -19,7 +15,6 @@ import type { InputJSON, NodeJSON, SpecJSON } from './validation.ts';
 
 export {
   type SerializedValue,
-  type SerializedContext,
   serializeNode,
   deserializeNode,
   serializeInput,
@@ -27,8 +22,6 @@ export {
   serializeSpec,
   deserializeSpec,
   validateSpecHash,
-  serializeInputContext,
-  deserializeInputContext,
 };
 
 function serializeSpec(spec: Spec): SpecJSON {
@@ -264,42 +257,6 @@ function deserializeNode(root: any, node: NodeJSON): Node {
       node satisfies never;
       throw Error(`Invalid node type: ${type}`);
   }
-}
-
-type SerializedContext =
-  | { type: 'https'; action: string; serverNonce: SerializedValue }
-  | { type: 'zk-app'; action: SerializedValue; serverNonce: SerializedValue };
-
-function serializeInputContext(
-  context: undefined | ZkAppInputContext | HttpsInputContext
-): null | SerializedContext {
-  if (context === undefined) return null;
-
-  let serverNonce = serializeProvable(context.serverNonce);
-
-  switch (context.type) {
-    case 'zk-app':
-      let action = serializeProvable(context.action);
-      return { type: context.type, serverNonce, action };
-    case 'https':
-      return { type: context.type, serverNonce, action: context.action };
-    default:
-      throw Error(`Unsupported context type: ${(context as any).type}`);
-  }
-}
-function deserializeInputContext(context: null | SerializedContext) {
-  if (context === null) return undefined;
-  return {
-    type: context.type,
-    action:
-      context.type === 'zk-app'
-        ? deserializeProvable({ _type: 'Field', value: context.action.value })
-        : context.action,
-    serverNonce: deserializeProvable({
-      _type: 'Field',
-      value: context.serverNonce.value,
-    }),
-  };
 }
 
 async function hashSpec(serializedSpec: string): Promise<string> {
