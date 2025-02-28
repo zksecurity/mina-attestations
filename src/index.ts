@@ -27,6 +27,8 @@ export {
 export { Schema } from './dynamic/schema.ts';
 export { PrettyPrinter } from './pretty-printer.ts';
 export { Numeric } from './dynamic/gadgets-numeric.ts';
+export { BlindingCommitment } from './imported/blinding-commitment.ts';
+export { MerkleProof } from './imported/merkle-proof.ts';
 
 export type {
   StoredCredentialJSON,
