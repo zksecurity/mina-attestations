@@ -217,7 +217,7 @@ test('presentation with context binding', async (t) => {
               ...request.inputContext,
               verifierIdentity: {
                 ...zkAppIdentity,
-                address: randomPublicKey(),
+                network: 'mainnet',
               },
             },
           },
