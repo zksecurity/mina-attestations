@@ -1,6 +1,6 @@
 {
   "name": "mina-attestations",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "workspaces": [
     "examples/web-demo",
     "examples/web-demo/api-server"
