@@ -7,6 +7,7 @@ import {
   PublicKey,
   Signature,
   Struct,
+  TokenId,
   UInt32,
   VerificationKey,
   verify,
@@ -146,7 +147,7 @@ const PresentationRequest = {
         type: 'zk-app',
         verifierIdentity: {
           publicKey: context.publicKey,
-          tokenId: context.tokenId ?? Field(0),
+          tokenId: context.tokenId ?? TokenId.default,
           network: context.network,
         },
         action: context.methodName,
@@ -175,7 +176,7 @@ const PresentationRequest = {
         type: 'zk-app',
         verifierIdentity: {
           publicKey: context.publicKey,
-          tokenId: context.tokenId ?? Field(0),
+          tokenId: context.tokenId ?? TokenId.default,
           network: context.network,
         },
         action: context.methodName,

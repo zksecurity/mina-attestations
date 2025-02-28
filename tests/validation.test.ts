@@ -6,7 +6,7 @@ import {
   PresentationRequestSchema,
 } from '../src/validation.ts';
 import { Bytes, Field, PublicKey, Signature } from 'o1js';
-import { owner, issuerKey } from './test-utils.ts';
+import { owner, issuerKey, zkAppIdentity } from './test-utils.ts';
 import { Spec, Claim } from '../src/program-spec.ts';
 import { createProgram } from '../src/program.ts';
 import { createUnsigned } from '../src/credential.ts';
@@ -109,7 +109,7 @@ test('PresentationRequestSchema validation', async (t) => {
     const request = PresentationRequest.zkApp(
       spec,
       { targetAge: Field(25), targetPoints: Field(100) },
-      { action: Field(123) }
+      { ...zkAppIdentity, methodName: 'myMethod' }
     );
 
     const serialized = JSON.parse(PresentationRequest.toJSON(request));

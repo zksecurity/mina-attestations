@@ -14,6 +14,8 @@ import { Presentation, PresentationRequest } from '../src/presentation.ts';
 import { Operation } from '../src/operation.ts';
 import { PresentationRequestSchema } from '../src/validation.ts';
 
+const zkappContext = { ...zkAppIdentity, methodName: 'myMethod' };
+
 test('program with simple spec and native credential', async (t) => {
   const Bytes32 = Bytes(32);
 
@@ -193,26 +195,35 @@ test('presentation with context binding', async (t) => {
     let request = PresentationRequest.zkApp(
       spec,
       { targetAge: Field(18) },
-      { action: Field(123) }
+      zkappContext
     );
 
     let presentation = await Presentation.create(ownerKey, {
       request,
-      context: { verifierIdentity: zkAppIdentity },
+      context: undefined,
       credentials: [signedData],
     });
 
     // verifies
-    await Presentation.verify(request, presentation, {
-      verifierIdentity: zkAppIdentity,
-    });
+    await Presentation.verify(request, presentation, undefined);
 
     // doesn't verify against different context
     await assert.rejects(
       () =>
-        Presentation.verify(request, presentation, {
-          verifierIdentity: { ...zkAppIdentity, address: randomPublicKey() },
-        }),
+        Presentation.verify(
+          {
+            ...request,
+            inputContext: {
+              ...request.inputContext,
+              verifierIdentity: {
+                ...zkAppIdentity,
+                address: randomPublicKey(),
+              },
+            },
+          },
+          presentation,
+          undefined
+        ),
       /Invalid proof/,
       'Should throw an error for invalid context'
     );
@@ -221,13 +232,10 @@ test('presentation with context binding', async (t) => {
     let request2 = PresentationRequest.zkApp(
       spec,
       { targetAge: Field(18) },
-      { action: Field(124) }
+      { ...zkappContext, methodName: 'otherMethod' }
     );
     await assert.rejects(
-      () =>
-        Presentation.verify(request2, presentation, {
-          verifierIdentity: zkAppIdentity,
-        }),
+      () => Presentation.verify(request2, presentation, undefined),
       /Invalid proof/,
       'Should throw an error for invalid context'
     );
@@ -277,12 +285,12 @@ test('serialize presentation', async (t) => {
     let request = PresentationRequest.zkApp(
       spec,
       { targetAge: Field(18) },
-      { action: Field(123) }
+      zkappContext
     );
 
     let presentation = await Presentation.create(ownerKey, {
       request,
-      context: { verifierIdentity: zkAppIdentity },
+      context: undefined,
       credentials: [signedData],
     });
 

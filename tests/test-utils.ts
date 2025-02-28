@@ -22,7 +22,7 @@ const { publicKey: issuer, privateKey: issuerKey } = PrivateKey.randomKeypair();
 
 const zkAppAddress = randomPublicKey();
 const zkAppIdentity: ZkAppIdentity = {
-  address: zkAppAddress,
+  publicKey: zkAppAddress,
   tokenId: TokenId.default,
   network: 'devnet',
 };

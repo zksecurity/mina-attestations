@@ -21,6 +21,8 @@ import {
   InputSchema,
   NodeSchema,
 } from '../src/validation.ts';
+import type { ZkAppInputContext } from '../src/context.ts';
+import { zkAppIdentity } from './test-utils.ts';
 
 test('Serialize Inputs', async (t) => {
   await t.test('should serialize basic types correctly', () => {
@@ -991,9 +993,10 @@ test('Serialize spec with owner and issuer nodes', async (t) => {
 
 test('serializeInputContext', async (t) => {
   await t.test('should serialize zk-app context', () => {
-    const context = {
+    const context: ZkAppInputContext = {
       type: 'zk-app' as const,
-      action: Field(456),
+      action: 'myMethod',
+      verifierIdentity: zkAppIdentity,
       serverNonce: Field(789),
     };
 

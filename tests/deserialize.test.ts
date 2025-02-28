@@ -34,7 +34,6 @@ import { withOwner } from '../src/credential.ts';
 import {
   HttpsRequest,
   PresentationRequest,
-  type WalletDerivedContext,
   ZkAppRequest,
 } from '../src/presentation.ts';
 import { zkAppIdentity } from './test-utils.ts';
@@ -42,6 +41,7 @@ import {
   computeHttpsContext,
   computeZkAppContext,
   hashContext,
+  type WalletDerivedContext,
 } from '../src/context.ts';
 import {
   deserializeProvable,
@@ -769,8 +769,9 @@ test('deserializePresentationRequest with context', async (t) => {
       claims: { targetAge: Field(18) },
       inputContext: {
         type: 'zk-app',
-        action: Field(123), // Mock method ID + args hash
+        action: 'myMethod',
         serverNonce: Field(789),
+        verifierIdentity: zkAppIdentity,
       },
     });
 
@@ -810,14 +811,12 @@ test('deserializePresentationRequest with context', async (t) => {
     const originalContext = hashContext(
       computeZkAppContext({
         ...originalRequest.inputContext,
-        verifierIdentity: zkAppIdentity,
         ...derivedContext,
       })
     );
     const deserializedContext = hashContext(
       computeZkAppContext({
         ...deserialized.inputContext,
-        verifierIdentity: zkAppIdentity,
         ...derivedContext,
       })
     );
