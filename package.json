@@ -35,7 +35,7 @@
       "import": "./build/src/validation-index.js"
     },
     "./rsa":{
-      "import": "./build/src/rsa/rsa.js"
+      "import": "./build/src/rsa-index.js"
     }
   },
   "scripts": {
