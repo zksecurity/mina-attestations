@@ -35,7 +35,7 @@ The `rsa.eg.ts` file provides an example of using `rsaVerify65537` in `ZkProgram
   - `bigintToBytesBE`: Converts a bigint to a byte array using big-endian byte order
 
   Example to verify rsa65537 signature using `mina-attestations/rsa`
-  ```
+  ```ts
 import { Bytes, ZkProgram } from 'o1js';
 import { SHA2 } from 'mina-attestations/dynamic';
 import { rsaVerify65537, rsaSign, Bigint2048, generateRsaKeys65537 } from 'mina-attestations/rsa';
