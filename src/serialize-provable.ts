@@ -35,6 +35,7 @@ export {
   serializeProvablePublicKey,
   serializeNestedProvable,
   serializeNestedProvableValue,
+  serializeSimplyNestedProvableValue,
   deserializeProvableType,
   deserializeProvable,
   deserializeNestedProvable,
@@ -121,8 +122,12 @@ function serializeProvableType(type: ProvableType<any>): SerializedType {
 
 type SerializedValue = SerializedType & { value: JSONValue };
 type SerializedValueAny = SerializedType & { value: any };
+type SerializedNestedValue =
+  | SerializedValue
+  | string
+  | { [key: string]: SerializedNestedValue };
 
-function serializeProvable(value: any): SerializedType & { value: JSONValue } {
+function serializeProvable(value: any): SerializedValue {
   let typeClass = ProvableType.fromValue(value);
   let serializedType = serializeProvableType(typeClass);
 
@@ -216,19 +221,26 @@ function serializeNestedProvable(type: NestedProvable): SerializedNestedType {
   throw Error(`Unsupported type in NestedProvable: ${type}`);
 }
 
-function serializeNestedProvableValue(value: any): any {
+function serializeNestedProvableValue(value: any): SerializedNestedValue {
   let type = NestedProvable.fromValue(value);
   return serializeNestedProvableTypeAndValue({ type, value });
+}
+
+function serializeSimplyNestedProvableValue(
+  value: Record<string, any>
+): Record<string, SerializedValue> {
+  return mapObject(value, (v) => serializeProvable(v));
 }
 
 function serializeNestedProvableTypeAndValue(t: {
   type: NestedProvable;
   value: any;
-}): any {
+}): SerializedNestedValue {
   if (ProvableType.isProvableType(t.type)) {
     return serializeProvable(t.value);
   }
-  if (typeof t.type === 'string' || (t.type as any) === String) return t.value;
+  if (typeof t.type === 'string' || (t.type as any) === String)
+    return t.value as string;
 
   return Object.fromEntries(
     Object.keys(t.type).map((key) => {
@@ -359,30 +371,30 @@ function proofFromJSONSync(json: {
   ]);
 }
 
-function deserializeNestedProvable(type: any): NestedProvable {
+function deserializeNestedProvable(type: SerializedNestedType): NestedProvable {
   if (typeof type === 'object' && type !== null) {
     if ('_type' in type) {
       // basic provable type
-      return deserializeProvableType(type);
+      return deserializeProvableType(type as SerializedType);
     } else {
       // nested object
-      const result: Record<string, any> = {};
+      let result: NestedProvable = {};
       for (const [key, value] of Object.entries(type)) {
         result[key] = deserializeNestedProvable(value);
       }
-      return result as NestedProvable;
+      return result;
     }
   }
   throw Error(`Invalid type in NestedProvable: ${type}`);
 }
 
-function deserializeNestedProvableValue(value: any): any {
+function deserializeNestedProvableValue(value: SerializedNestedValue) {
   if (typeof value === 'string') return value;
 
   if (typeof value === 'object' && value !== null) {
     if ('_type' in value) {
       // basic provable type
-      return deserializeProvable(value);
+      return deserializeProvable(value as SerializedValue);
     } else {
       // nested object
       const result: Record<string, any> = {};
@@ -392,7 +404,6 @@ function deserializeNestedProvableValue(value: any): any {
       return result;
     }
   }
-
   throw Error(`Invalid nested provable value: ${value}`);
 }
 

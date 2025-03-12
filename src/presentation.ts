@@ -51,8 +51,12 @@ import {
   deserializeProvable,
   serializeNestedProvableValue,
   serializeProvable,
+  serializeSimplyNestedProvableValue,
 } from './serialize-provable.ts';
-import { PresentationRequestSchema } from './validation.ts';
+import {
+  type PresentationRequestJSON,
+  PresentationRequestSchema,
+} from './validation.ts';
 import { TypeBuilder } from './provable-type-builder.ts';
 
 // external API
@@ -218,10 +222,10 @@ const PresentationRequest = {
   },
 
   toJSON(request: PresentationRequest) {
-    let json = {
+    let json: PresentationRequestJSON = {
       type: request.type,
       spec: serializeSpec(request.spec),
-      claims: serializeNestedProvableValue(request.claims),
+      claims: serializeSimplyNestedProvableValue(request.claims),
       inputContext: serializeInputContext(request.inputContext),
     };
     return JSON.stringify(json);
@@ -242,9 +246,7 @@ const PresentationRequest = {
   },
 };
 
-function requestFromJson(
-  request: { type: PresentationRequestType } & Record<string, any>
-) {
+function requestFromJson(request: PresentationRequestJSON) {
   let spec = deserializeSpec(request.spec);
   let claims = deserializeNestedProvableValue(request.claims);
 
