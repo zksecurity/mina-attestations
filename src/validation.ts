@@ -10,6 +10,7 @@ export {
   NodeSchema,
   InputSchema,
   ContextSchema,
+  PresentationSchema,
 };
 export type {
   InputJSON,
@@ -22,6 +23,7 @@ export type {
   StoredCredentialJSON,
   ContextJSON,
   ZkAppIdentityJSON,
+  PresentationJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -548,3 +550,21 @@ const StoredCredentialSchema = z
   .strict();
 
 type StoredCredentialJSON = z.infer<typeof StoredCredentialSchema>;
+
+// presentation
+
+const PresentationSchema = z
+  .object({
+    version: z.literal('v0'),
+    claims: z.record(SerializedValueSchema),
+    outputClaim: SerializedValueSchema,
+    serverNonce: SerializedFieldSchema,
+    clientNonce: SerializedFieldSchema,
+    proof: z.object({
+      proof: z.string(),
+      maxProofsVerified,
+    }),
+  })
+  .strict();
+
+type PresentationJSON = z.infer<typeof PresentationSchema>;

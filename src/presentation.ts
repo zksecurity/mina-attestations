@@ -49,13 +49,15 @@ import { serializeSpec, deserializeSpec } from './serialize-spec.ts';
 import {
   deserializeNestedProvableValue,
   deserializeProvable,
-  serializeNestedProvableValue,
   serializeProvable,
+  serializeProvableField,
   serializeSimplyNestedProvableValue,
 } from './serialize-provable.ts';
 import {
+  type PresentationJSON,
   type PresentationRequestJSON,
   PresentationRequestSchema,
+  PresentationSchema,
 } from './validation.ts';
 import { TypeBuilder } from './provable-type-builder.ts';
 
@@ -275,7 +277,7 @@ type Presentation<
   outputClaim: Output;
   serverNonce: Field;
   clientNonce: Field;
-  proof: { proof: string; maxProofsVerified: number };
+  proof: { proof: string; maxProofsVerified: 0 | 1 | 2 };
 };
 
 type Output<R> = R extends PresentationRequest<any, infer O> ? O : never;
@@ -537,28 +539,28 @@ async function verifyPresentation<R extends PresentationRequest>(
 function toJSON<Output, Inputs extends Record<string, Input>>(
   presentation: Presentation<Output, Inputs>
 ): string {
-  let json = {
+  let json: PresentationJSON = {
     version: presentation.version,
-    claims: serializeNestedProvableValue(presentation.claims),
-    outputClaim: serializeNestedProvableValue(presentation.outputClaim),
-    serverNonce: serializeProvable(presentation.serverNonce),
-    clientNonce: serializeProvable(presentation.clientNonce),
+    claims: serializeSimplyNestedProvableValue(presentation.claims),
+    outputClaim: serializeProvable(presentation.outputClaim),
+    serverNonce: serializeProvableField(presentation.serverNonce),
+    clientNonce: serializeProvableField(presentation.clientNonce),
     proof: presentation.proof,
   };
   return JSON.stringify(json);
 }
 
 function fromJSON(presentationJson: string): Presentation {
-  let presentation = JSON.parse(presentationJson);
+  let parsed: unknown = JSON.parse(presentationJson);
+  let presentation = PresentationSchema.parse(parsed);
   assert(
     presentation.version === 'v0',
     `Unsupported presentation version: ${presentation.version}`
   );
-
   return {
     version: presentation.version,
     claims: deserializeNestedProvableValue(presentation.claims),
-    outputClaim: deserializeNestedProvableValue(presentation.outputClaim),
+    outputClaim: deserializeProvable(presentation.outputClaim),
     serverNonce: deserializeProvable(presentation.serverNonce),
     clientNonce: deserializeProvable(presentation.clientNonce),
     proof: presentation.proof,
