@@ -29,6 +29,7 @@ import { NestedProvable } from '../nested.ts';
 import { ProvableFactory } from '../provable-factory.ts';
 import {
   deserializeNestedProvable,
+  deserializeNestedProvableValue,
   serializeNestedProvable,
   serializeNestedProvableValue,
 } from '../serialize-provable.ts';
@@ -272,7 +273,7 @@ ProvableFactory.register(DynamicRecord, {
   },
 
   valueFromJSON(type, value) {
-    let actual = deserializeNestedProvable(value);
+    let actual = deserializeNestedProvableValue(value);
     return type.provable.fromValue(actual);
   },
 });

@@ -522,12 +522,10 @@ const NativeCredentialSchema = z
 const StructCredentialSchema = z
   .object({
     _type: z.literal('Struct'),
-    properties: z
-      .object({
-        owner: SerializedPublicKeyTypeSchema,
-        data: JsonSchema,
-      })
-      .strict(),
+    properties: z.object({
+      owner: SerializedPublicKeyTypeSchema,
+      data: NestedSerializedTypeSchema,
+    }),
     value: z
       .object({
         owner: z.object({

@@ -125,6 +125,8 @@ type SerializedValueAny = SerializedType & { value: any };
 type SerializedNestedValue =
   | SerializedValue
   | string
+  | number
+  | boolean
   | { [key: string]: SerializedNestedValue };
 
 function serializeProvable(value: any): SerializedValue {

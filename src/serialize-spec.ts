@@ -1,7 +1,6 @@
 import { Claim, Constant, Spec, type Input } from './program-spec.ts';
 import { Node } from './operation.ts';
 import {
-  type SerializedValue,
   serializeNestedProvable,
   serializeProvable,
   serializeProvableType,
@@ -14,7 +13,6 @@ import { Credential } from './credential-index.ts';
 import type { InputJSON, NodeJSON, SpecJSON } from './validation.ts';
 
 export {
-  type SerializedValue,
   serializeNode,
   deserializeNode,
   serializeInput,
