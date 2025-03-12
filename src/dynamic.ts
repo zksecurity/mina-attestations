@@ -19,3 +19,4 @@ export { Numeric } from './dynamic/gadgets-numeric.ts';
 
 export { hashDynamic, hashDynamicWithPrefix } from './dynamic/dynamic-hash.ts';
 export { Schema } from './dynamic/schema.ts';
+export { SHA2 } from './dynamic/sha2.ts';
