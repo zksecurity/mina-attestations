@@ -559,8 +559,8 @@ const PresentationSchema = z
     serverNonce: SerializedFieldSchema,
     clientNonce: SerializedFieldSchema,
     proof: z.object({
-      proof: z.string(),
       maxProofsVerified,
+      proof: z.string(),
     }),
   })
   .strict();
