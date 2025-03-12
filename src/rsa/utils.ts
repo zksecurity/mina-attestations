@@ -5,6 +5,7 @@ export {
   power,
   generateRsaKeys65537,
   randomPrime,
+  millerRabinTest,
   bytesToBigint,
   bigintToBytes,
   bytesToBigintBE,

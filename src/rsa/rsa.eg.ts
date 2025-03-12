@@ -1,7 +1,11 @@
 import { Bytes, ZkProgram } from 'o1js';
-import { SHA2 } from '../dynamic/sha2.ts';
-import { rsaVerify65537, rsaSign, Bigint2048 } from './rsa.ts';
-import { generateRsaKeys65537 } from './utils.ts';
+import { SHA2 } from 'mina-attestations/dynamic';
+import {
+  rsaVerify65537,
+  rsaSign,
+  Bigint2048,
+  generateRsaKeys65537,
+} from 'mina-attestations/rsa';
 
 let keys = generateRsaKeys65537();
 
@@ -30,8 +34,4 @@ console.log((await rsaProgram.analyzeMethods()).run.summary());
 await rsaProgram.compile();
 
 // Run the program
-await rsaProgram.run(
-  message,
-  Bigint2048.from(signature),
-  Bigint2048.from(keys.n)
-);
+await rsaProgram.run(message, signature, keys.n);

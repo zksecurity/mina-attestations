@@ -62,7 +62,7 @@ The remainder of this README contains documentation aimed at developers, startin
 - [Code example: Defining a private attestation ](#operations-dsl)
 - [What credentials are supported? ](#credential-kinds)
 - [API](#api)
-- Bonus: 
+- Bonus:
   - [`mina-attestations/dynamic`](#bonus-mina-attestationsdynamic)
   - [`mina-attestations/rsa`](#bonus-mina-attestationsrsa)
 
@@ -1911,7 +1911,7 @@ console.log(provenHash.toHex());
 
 ## Bonus: `mina-attestations/rsa`
 
-The sub-import mina-attestations/rsa provides a library of data types and functions for generating and verifying RSA-65537 signatures. For more details, refer to [this](./src/rsa/README.md).
+The sub-import `mina-attestations/rsa` provides provable methods for verifying RSA signatures. For more details, refer to [the subfolder README](https://github.com/zksecurity/mina-attestations/blob/main/src/rsa/README.md).
 
 <!-- ## Further resources and background
 
