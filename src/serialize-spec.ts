@@ -1,7 +1,6 @@
 import { Claim, Constant, Spec, type Input } from './program-spec.ts';
 import { Node } from './operation.ts';
 import {
-  type SerializedValue,
   serializeNestedProvable,
   serializeProvable,
   serializeProvableType,
@@ -14,14 +13,12 @@ import { Credential } from './credential-index.ts';
 import type { InputJSON, NodeJSON, SpecJSON } from './validation.ts';
 
 export {
-  type SerializedValue,
   serializeNode,
   deserializeNode,
   serializeInput,
   deserializeInput,
   serializeSpec,
   deserializeSpec,
-  validateSpecHash,
 };
 
 function serializeSpec(spec: Spec): SpecJSON {
@@ -257,20 +254,4 @@ function deserializeNode(root: any, node: NodeJSON): Node {
       node satisfies never;
       throw Error(`Invalid node type: ${type}`);
   }
-}
-
-async function hashSpec(serializedSpec: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(serializedSpec);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function validateSpecHash(
-  serializedSpecWithHash: string
-): Promise<boolean> {
-  const { spec, hash } = JSON.parse(serializedSpecWithHash);
-  const recomputedHash = await hashSpec(spec);
-  return hash === recomputedHash;
 }

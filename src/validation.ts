@@ -10,6 +10,7 @@ export {
   NodeSchema,
   InputSchema,
   ContextSchema,
+  PresentationSchema,
 };
 export type {
   InputJSON,
@@ -22,6 +23,7 @@ export type {
   StoredCredentialJSON,
   ContextJSON,
   ZkAppIdentityJSON,
+  PresentationJSON,
 };
 
 type Literal = string | number | boolean | null;
@@ -520,12 +522,10 @@ const NativeCredentialSchema = z
 const StructCredentialSchema = z
   .object({
     _type: z.literal('Struct'),
-    properties: z
-      .object({
-        owner: SerializedPublicKeyTypeSchema,
-        data: JsonSchema,
-      })
-      .strict(),
+    properties: z.object({
+      owner: SerializedPublicKeyTypeSchema,
+      data: NestedSerializedTypeSchema,
+    }),
     value: z
       .object({
         owner: z.object({
@@ -548,3 +548,21 @@ const StoredCredentialSchema = z
   .strict();
 
 type StoredCredentialJSON = z.infer<typeof StoredCredentialSchema>;
+
+// presentation
+
+const PresentationSchema = z
+  .object({
+    version: z.literal('v0'),
+    claims: z.record(SerializedValueSchema),
+    outputClaim: SerializedValueSchema,
+    serverNonce: SerializedFieldSchema,
+    clientNonce: SerializedFieldSchema,
+    proof: z.object({
+      maxProofsVerified,
+      proof: z.string(),
+    }),
+  })
+  .strict();
+
+type PresentationJSON = z.infer<typeof PresentationSchema>;

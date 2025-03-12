@@ -300,6 +300,7 @@ test('serialize presentation', async (t) => {
     let deserialized = Presentation.fromJSON(serialized);
     let reserialized = Presentation.toJSON(deserialized);
 
-    assert.deepStrictEqual(serialized, reserialized);
+    assert.deepStrictEqual(deserialized, presentation);
+    assert.deepStrictEqual(reserialized, serialized);
   });
 });
