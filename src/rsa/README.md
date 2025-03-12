@@ -24,7 +24,7 @@ Utils:
 - `generateRsaKeys65537()`: Creates a random set of 2048-bit RSA keys with the fixed public exponent 65537
 - `randomPrime()`: Generates cryptographically secure random prime numbers of specified bit length, using Miller-Rabin primality testing
 - `millerRabinTest()`: Implements the Miller-Rabin probabilistic primality test
-- `power()`: Performs modular exponentiation $a^n mod p$ using the square-and-multiply algorithm
+- `power()`: Performs modular exponentiation $a^n \bmod p$ using the square-and-multiply algorithm
 
 Example to prove verification of an RSA signature using `mina-attestations/rsa`:
 
