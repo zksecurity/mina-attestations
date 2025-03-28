@@ -8,6 +8,7 @@ import { ProvableFactory } from '../provable-factory.ts';
 import { assert, chunk, stringLength } from '../util.ts';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
 import type { ProvableHashablePure } from '../o1js-missing.ts';
+import { z } from 'zod';
 
 export { DynamicBytes, DynamicBytesBase };
 
@@ -196,7 +197,10 @@ DynamicBytes.Base = DynamicBytesBase;
 
 // serialize/deserialize
 
-ProvableFactory.register(DynamicBytes, {
+ProvableFactory.register('DynamicBytes', DynamicBytes, {
+  typeSchema: z.object({ maxLength: z.number() }),
+  valueSchema: z.string(),
+
   typeToJSON(constructor) {
     return { maxLength: constructor.maxLength };
   },

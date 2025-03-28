@@ -39,6 +39,8 @@ import { StaticArray } from './static-array.ts';
 import { bitSize, packToField } from './dynamic-hash.ts';
 import { BaseType } from './dynamic-base-types.ts';
 import { type NestedProvableFor, NestedProvable } from '../nested.ts';
+import { z } from 'zod';
+import { SerializedTypeSchema, SerializedValueSchema } from '../validation.ts';
 
 export { DynamicArray };
 
@@ -901,7 +903,13 @@ function provable<T, V, Class extends typeof DynamicArrayBase<T, V>>(
 
 // serialize/deserialize
 
-ProvableFactory.register(DynamicArray, {
+ProvableFactory.register('DynamicArray', DynamicArray, {
+  typeSchema: z.object({
+    maxLength: z.number(),
+    innerType: SerializedTypeSchema,
+  }),
+  valueSchema: z.array(SerializedValueSchema),
+
   typeToJSON(constructor) {
     return {
       maxLength: constructor.maxLength,

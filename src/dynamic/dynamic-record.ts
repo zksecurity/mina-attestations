@@ -35,6 +35,8 @@ import {
 } from '../serialize-provable.ts';
 import { hashString, packToField } from './dynamic-hash.ts';
 import { BaseType } from './dynamic-base-types.ts';
+import { z } from 'zod';
+import { SerializedTypeSchema, SerializedValueSchema } from '../validation.ts';
 
 export {
   DynamicRecord,
@@ -253,7 +255,13 @@ function extractProperty(data: unknown, key: string): unknown {
 
 // serialize/deserialize
 
-ProvableFactory.register(DynamicRecord, {
+ProvableFactory.register('DynamicRecord', DynamicRecord, {
+  typeSchema: z.object({
+    maxEntries: z.number(),
+    knownShape: z.record(SerializedTypeSchema),
+  }),
+  valueSchema: z.record(SerializedValueSchema),
+
   typeToJSON(constructor) {
     return {
       maxEntries: constructor.prototype.maxEntries,
