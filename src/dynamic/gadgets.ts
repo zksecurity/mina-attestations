@@ -20,8 +20,6 @@ export {
   unpackBytes,
   uint64FromBytesBE,
   uint64ToBytesBE,
-  unsafeIf,
-  seal,
   lessThan16,
   assertInRange16,
   assertLessThan16,

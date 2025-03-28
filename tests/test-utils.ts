@@ -1,13 +1,7 @@
-import { Field, PrivateKey, TokenId } from 'o1js';
-import {
-  type Credential,
-  type CredentialSpec,
-  signCredentials,
-} from '../src/credential.ts';
+import { PrivateKey, TokenId } from 'o1js';
 import type { ZkAppIdentity } from '../src/context.ts';
 
 export {
-  createOwnerSignature,
   randomPublicKey,
   owner,
   ownerKey,
@@ -29,21 +23,4 @@ const zkAppIdentity: ZkAppIdentity = {
 
 function randomPublicKey() {
   return PrivateKey.random().toPublicKey();
-}
-
-function createOwnerSignature<Witness, Data>(
-  context: Field,
-  ...credentials: [
-    CredentialSpec<Witness, Data>,
-    { credential: Credential<Data>; witness: Witness }
-  ][]
-) {
-  return signCredentials(
-    ownerKey,
-    context,
-    ...credentials.map(([credentialType, cred]) => ({
-      ...cred,
-      credentialType,
-    }))
-  );
 }

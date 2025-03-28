@@ -24,11 +24,9 @@ import { ProvableFactory, type SerializedFactory } from './provable-factory.ts';
 import type { JSONValue } from './types.ts';
 
 export {
-  type O1jsTypeName,
   type SerializedType,
   type SerializedValue,
   type SerializedNestedType,
-  supportedTypes,
   serializeProvableType,
   serializeProvable,
   serializeProvableField,

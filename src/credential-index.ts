@@ -30,7 +30,7 @@ import {
   type CredentialSpecJSON,
 } from './validation.ts';
 
-export { Credential, validateCredential };
+export { Credential };
 
 /**
  * A credential is a generic piece of data (the "attributes") along with an owner represented by a public key.

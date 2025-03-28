@@ -1,10 +1,10 @@
 import type { ProvableType } from 'o1js';
 import { assert, assertHasProperty, hasProperty } from './util.ts';
 import type { z } from 'zod';
+import type { Constructor } from './types.ts';
 
 export { ProvableFactory, type SerializedFactory };
 
-type Constructor<T = any> = new (...args: any) => T;
 type ProvableConstructor<T = any, V = any> = Constructor<T> &
   ProvableType<T, V>;
 

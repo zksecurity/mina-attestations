@@ -23,7 +23,6 @@ export {
   type ProvablePureType,
   type ProvableHashableType,
   type ProvableHashablePure,
-  type ProvableMaybeHashable,
   type ProvableHashableWide,
   array,
   toFieldsPacked,
@@ -31,7 +30,6 @@ export {
   empty,
   toInput,
   HashInput,
-  type WithProvable,
 };
 
 const ProvableType = {

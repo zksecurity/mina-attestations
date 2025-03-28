@@ -71,7 +71,7 @@ export {
 };
 
 // internal
-export { type PresentationRequestType, hashClaims, pickCredentials };
+export { type PresentationRequestType, pickCredentials };
 
 type PresentationRequestType = 'no-context' | 'zk-app' | 'https';
 

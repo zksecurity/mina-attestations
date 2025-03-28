@@ -36,7 +36,6 @@ export type {
   PrivateInputs,
   UserInputs,
   RootValue,
-  ToCredential,
   Input,
   Claims,
   RootType,
