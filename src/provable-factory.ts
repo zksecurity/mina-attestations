@@ -1,35 +1,34 @@
-import { ProvableType } from 'o1js';
-import { assert, hasProperty } from './util.ts';
+import type { ProvableType } from 'o1js';
+import { assert, assertHasProperty, hasProperty } from './util.ts';
+import type { z } from 'zod';
 
 export { ProvableFactory, type SerializedFactory };
 
 type Constructor<T = any> = new (...args: any) => T;
+type ProvableConstructor<T = any, V = any> = Constructor<T> &
+  ProvableType<T, V>;
 
 /**
  * Standard interface for polymorphic provable type that can be serialized.
  */
 type ProvableFactory<N extends string = string, T = any, V = any> = ((
   ...args: any
-) => Constructor<T> & ProvableType<T, V>) & {
+) => ProvableConstructor<T, V>) & {
   name: N;
   Base: Constructor<T>;
 };
 
 type Serializer<
-  A extends ProvableFactory = ProvableFactory,
+  A extends ProvableConstructor = ProvableConstructor,
   S extends Serialized = Serialized,
   V = any
 > = {
-  typeToJSON(constructor: ReturnType<A>): S;
-
-  typeFromJSON(json: S): ReturnType<A> | undefined;
-
-  valueToJSON(type: ReturnType<A>, value: InstanceType<ReturnType<A>>): V;
-
-  valueFromJSON(
-    type: ReturnType<A>,
-    json: V
-  ): InstanceType<ReturnType<A>> | undefined;
+  typeSchema: z.ZodType<S>;
+  valueSchema: z.ZodType<V>;
+  typeToJSON(constructor: A): S;
+  typeFromJSON(json: S): A;
+  valueToJSON(type: A, value: InstanceType<A>): V;
+  valueFromJSON(type: A, json: V): InstanceType<A>;
 };
 
 type SerializedFactory = {
@@ -39,16 +38,17 @@ type SerializedFactory = {
 
 type Serialized = Record<string, any>;
 
-type MapValue = { base: ProvableFactory['Base'] } & Serializer;
+type MapValue = { base: Constructor } & Serializer;
 const factories = new Map<string, MapValue>();
 
 const ProvableFactory = {
   register<A extends ProvableFactory, S extends Serialized, V>(
+    name: string,
     factory: A,
-    serialize: Serializer<A, S, V>
+    serialize: Serializer<ReturnType<A>, S, V>
   ) {
-    assert(!factories.has(factory.name), 'Factory already registered');
-    factories.set(factory.name, { base: factory.Base, ...serialize });
+    assert(!factories.has(name), 'Factory already registered');
+    factories.set(name, { base: factory.Base, ...serialize });
   },
 
   getRegistered(value: unknown) {
@@ -89,24 +89,24 @@ const ProvableFactory = {
     return hasProperty(json, '_isFactory') && json._isFactory === true;
   },
 
-  fromJSON(json: SerializedFactory): Constructor & ProvableType {
+  fromJSON(json: unknown): Constructor & ProvableType {
+    assertHasProperty(json, '_type');
+    assert(typeof json._type === 'string', 'Invalid type');
     let factory = factories.get(json._type);
     assert(factory !== undefined, `Type '${json._type}' not registered`);
-
-    let serialized = factory.typeFromJSON(json);
-    assert(
-      serialized !== undefined,
-      `Invalid serialization of type '${json._type}'`
-    );
-    return serialized;
+    let validated = factory.typeSchema.parse(json);
+    return factory.typeFromJSON(validated);
   },
 
-  valueFromJSON(json: Serialized & { value: any }): any {
+  valueFromJSON(json: unknown) {
+    assertHasProperty(json, '_type');
+    assert(typeof json._type === 'string', 'Invalid type');
     let factory = factories.get(json._type);
     assert(factory !== undefined, `Type '${json._type}' not registered`);
-
-    let type = factory.typeFromJSON(json);
-    assert(type !== undefined, `Invalid serialization of type '${json._type}'`);
-    return factory.valueFromJSON(type, json.value);
+    let validated = factory.typeSchema.parse(json);
+    let type = factory.typeFromJSON(validated);
+    assertHasProperty(json, 'value');
+    let value = factory.valueSchema.parse(json.value);
+    return factory.valueFromJSON(type, value);
   },
 };

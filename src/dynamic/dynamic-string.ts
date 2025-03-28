@@ -18,6 +18,7 @@ import { BaseType } from './dynamic-base-types.ts';
 import { DynamicSHA2 } from './dynamic-sha2.ts';
 import { packBytes } from './gadgets.ts';
 import { StaticArray } from './static-array.ts';
+import { z } from 'zod';
 
 export { DynamicString };
 
@@ -278,7 +279,10 @@ type UInt8V = { value: bigint };
 
 // serialize/deserialize
 
-ProvableFactory.register(DynamicString, {
+ProvableFactory.register('DynamicString', DynamicString, {
+  typeSchema: z.object({ maxLength: z.number() }),
+  valueSchema: z.string(),
+
   typeToJSON(constructor) {
     return { maxLength: constructor.maxLength };
   },

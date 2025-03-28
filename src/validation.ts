@@ -5,6 +5,8 @@ import type {
 } from './serialize-provable.ts';
 
 export {
+  SerializedTypeSchema,
+  SerializedValueSchema,
   StoredCredentialSchema,
   PresentationRequestSchema,
   NodeSchema,
