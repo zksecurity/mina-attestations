@@ -12,6 +12,7 @@
     "moduleResolution": "nodenext",
 
     "lib": ["dom", "esnext"],
+    "resolveJsonModule": true,
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
