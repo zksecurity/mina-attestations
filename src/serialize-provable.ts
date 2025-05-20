@@ -28,14 +28,14 @@ export {
   type SerializedValue,
   type SerializedNestedType,
   serializeProvableType,
-  serializeProvable,
+  serializeProvableValue,
   serializeProvableField,
   serializeProvablePublicKey,
-  serializeNestedProvable,
+  serializeNestedProvableType,
   serializeNestedProvableValue,
   serializeSimplyNestedProvableValue,
   deserializeProvableType,
-  deserializeProvable,
+  deserializeProvableValue,
   deserializeNestedProvable,
   deserializeNestedProvableValue,
   replaceNull,
@@ -127,7 +127,7 @@ type SerializedNestedValue =
   | boolean
   | { [key: string]: SerializedNestedValue };
 
-function serializeProvable(value: any): SerializedValue {
+function serializeProvableValue(value: any): SerializedValue {
   let typeClass = ProvableType.fromValue(value);
   let serializedType = serializeProvableType(typeClass);
 
@@ -145,7 +145,7 @@ function serializeProvable(value: any): SerializedValue {
     case 'Array': {
       return {
         ...serializedType,
-        value: value.map((x: any) => serializeProvable(x)),
+        value: value.map((x: any) => serializeProvableValue(x)),
       };
     }
     case 'Struct':
@@ -197,12 +197,14 @@ function serializeStructType(type: Struct<any>): SerializedType {
 
   for (let key in value) {
     let type = NestedProvable.fromValue(value[key]);
-    properties[key] = serializeNestedProvable(type);
+    properties[key] = serializeNestedProvableType(type);
   }
   return { _type: 'Struct', properties };
 }
 
-function serializeNestedProvable(type: NestedProvable): SerializedNestedType {
+function serializeNestedProvableType(
+  type: NestedProvable
+): SerializedNestedType {
   if (ProvableType.isProvableType(type)) {
     return serializeProvableType(type);
   }
@@ -213,7 +215,7 @@ function serializeNestedProvable(type: NestedProvable): SerializedNestedType {
   if (typeof type === 'object' && type !== null) {
     const serializedObject: Record<string, any> = {};
     for (const key of Object.keys(type)) {
-      serializedObject[key] = serializeNestedProvable(type[key]!);
+      serializedObject[key] = serializeNestedProvableType(type[key]!);
     }
     return serializedObject;
   }
@@ -229,7 +231,7 @@ function serializeNestedProvableValue(value: any): SerializedNestedValue {
 function serializeSimplyNestedProvableValue(
   value: Record<string, any>
 ): Record<string, SerializedValue> {
-  return mapObject(value, (v) => serializeProvable(v));
+  return mapObject(value, (v) => serializeProvableValue(v));
 }
 
 function serializeNestedProvableTypeAndValue(t: {
@@ -237,7 +239,7 @@ function serializeNestedProvableTypeAndValue(t: {
   value: any;
 }): SerializedNestedValue {
   if (ProvableType.isProvableType(t.type)) {
-    return serializeProvable(t.value);
+    return serializeProvableValue(t.value);
   }
   if (typeof t.type === 'string' || (t.type as any) === String)
     return t.value as string;
@@ -298,7 +300,7 @@ function deserializeProvableType(type: SerializedType): ProvableType<any> {
   return result;
 }
 
-function deserializeProvable(json: SerializedValueAny): any {
+function deserializeProvableValue(json: SerializedValueAny): any {
   if (ProvableFactory.isSerialized(json))
     return ProvableFactory.valueFromJSON(json);
 
@@ -330,7 +332,7 @@ function deserializeProvable(json: SerializedValueAny): any {
     case 'Proof':
       return proofFromJSONSync(json);
     case 'Array':
-      return (value as any[]).map((v) => deserializeProvable(v));
+      return (value as any[]).map((v) => deserializeProvableValue(v));
     case 'Struct':
       let type = deserializeProvableType(json) as Struct<any>;
       let result: Record<string, any> = {};
@@ -394,7 +396,7 @@ function deserializeNestedProvableValue(value: SerializedNestedValue) {
   if (typeof value === 'object' && value !== null) {
     if ('_type' in value) {
       // basic provable type
-      return deserializeProvable(value as SerializedValue);
+      return deserializeProvableValue(value as SerializedValue);
     } else {
       // nested object
       const result: Record<string, any> = {};

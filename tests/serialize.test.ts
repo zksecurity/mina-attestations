@@ -10,7 +10,7 @@ import {
 import { Bool, Field, PublicKey, Signature, UInt32, UInt64, UInt8 } from 'o1js';
 import { Credential } from '../src/credential-index.ts';
 import {
-  serializeNestedProvable,
+  serializeNestedProvableType,
   serializeProvableType,
 } from '../src/serialize-provable.ts';
 import {
@@ -47,21 +47,25 @@ test('Serialize Inputs', async (t) => {
   });
 
   await t.test('should serialize simple provable types (nested)', () => {
-    assert.deepStrictEqual(serializeNestedProvable(Field), {
+    assert.deepStrictEqual(serializeNestedProvableType(Field), {
       _type: 'Field',
     });
-    assert.deepStrictEqual(serializeNestedProvable(Bool), { _type: 'Bool' });
-    assert.deepStrictEqual(serializeNestedProvable(UInt8), { _type: 'UInt8' });
-    assert.deepStrictEqual(serializeNestedProvable(UInt32), {
+    assert.deepStrictEqual(serializeNestedProvableType(Bool), {
+      _type: 'Bool',
+    });
+    assert.deepStrictEqual(serializeNestedProvableType(UInt8), {
+      _type: 'UInt8',
+    });
+    assert.deepStrictEqual(serializeNestedProvableType(UInt32), {
       _type: 'UInt32',
     });
-    assert.deepStrictEqual(serializeNestedProvable(UInt64), {
+    assert.deepStrictEqual(serializeNestedProvableType(UInt64), {
       _type: 'UInt64',
     });
-    assert.deepStrictEqual(serializeNestedProvable(PublicKey), {
+    assert.deepStrictEqual(serializeNestedProvableType(PublicKey), {
       _type: 'PublicKey',
     });
-    assert.deepStrictEqual(serializeNestedProvable(Signature), {
+    assert.deepStrictEqual(serializeNestedProvableType(Signature), {
       _type: 'Signature',
     });
   });
@@ -75,7 +79,7 @@ test('Serialize Inputs', async (t) => {
       },
     };
 
-    assert.deepStrictEqual(serializeNestedProvable(nestedType), {
+    assert.deepStrictEqual(serializeNestedProvableType(nestedType), {
       field: { _type: 'Field' },
       nested: {
         bool: { _type: 'Bool' },
@@ -97,7 +101,7 @@ test('Serialize Inputs', async (t) => {
       },
     };
 
-    assert.deepStrictEqual(serializeNestedProvable(complexType), {
+    assert.deepStrictEqual(serializeNestedProvableType(complexType), {
       simpleField: { _type: 'Field' },
       nestedObject: {
         publicKey: { _type: 'PublicKey' },
@@ -111,7 +115,7 @@ test('Serialize Inputs', async (t) => {
   });
 
   await t.test('should throw an error for unsupported types', () => {
-    assert.throws(() => serializeNestedProvable(123 as any), {
+    assert.throws(() => serializeNestedProvableType(123 as any), {
       name: 'Error',
       message: 'Unsupported type in NestedProvable: 123',
     });

@@ -21,7 +21,7 @@ import { type InferNestedProvable, NestedProvable } from './nested.ts';
 import {
   deserializeNestedProvable,
   deserializeNestedProvableValue,
-  serializeNestedProvable,
+  serializeNestedProvableType,
   serializeNestedProvableValue,
 } from './serialize-provable.ts';
 import { Schema } from './dynamic/schema.ts';
@@ -154,7 +154,7 @@ function specToJSON(spec: CredentialSpec): CredentialSpecJSON {
       spec.witness === undefined
         ? null
         : ImportedWitnessSpec.toJSON(spec.witness),
-    data: serializeNestedProvable(spec.data),
+    data: serializeNestedProvableType(spec.data),
   };
 }
 

@@ -1,11 +1,11 @@
 import { Claim, Constant, Spec, type Input } from './program-spec.ts';
 import { Node } from './operation.ts';
 import {
-  serializeNestedProvable,
-  serializeProvable,
+  serializeNestedProvableType,
+  serializeProvableValue,
   serializeProvableType,
   deserializeNestedProvable,
-  deserializeProvable,
+  deserializeProvableValue,
   deserializeProvableType,
 } from './serialize-provable.ts';
 import { assert, mapObject } from './util.ts';
@@ -43,13 +43,13 @@ function serializeInput(input: Input): InputJSON {
       return {
         type: 'constant',
         data: serializeProvableType(input.data),
-        value: serializeProvable(input.value).value,
+        value: serializeProvableValue(input.value).value,
       };
     }
     case 'claim': {
       return {
         type: 'claim',
-        data: serializeNestedProvable(input.data),
+        data: serializeNestedProvableType(input.data),
       };
     }
     default: {
@@ -64,7 +64,7 @@ function deserializeInput(input: InputJSON): Input {
     case 'constant':
       return Constant(
         deserializeProvableType(input.data),
-        deserializeProvable({ ...input.data, value: input.value })
+        deserializeProvableValue({ ...input.data, value: input.value })
       );
     case 'claim':
       return Claim(deserializeNestedProvable(input.data));
@@ -81,7 +81,7 @@ function serializeNode(node: Node): NodeJSON {
     case 'constant': {
       return {
         type: 'constant',
-        data: serializeProvable(node.data),
+        data: serializeProvableValue(node.data),
       };
     }
     case 'root': {
@@ -171,7 +171,7 @@ function deserializeNode(root: any, node: NodeJSON): Node {
     case 'constant':
       return {
         type: 'constant',
-        data: deserializeProvable(node.data),
+        data: deserializeProvableValue(node.data),
       };
     case 'root':
       return { type: 'root', input: root };

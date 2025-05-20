@@ -44,9 +44,9 @@ import {
   type WalletDerivedContext,
 } from '../src/context.ts';
 import {
-  deserializeProvable,
+  deserializeProvableValue,
   deserializeProvableType,
-  serializeProvable,
+  serializeProvableValue,
 } from '../src/serialize-provable.ts';
 import { PresentationRequestSchema } from '../src/validation.ts';
 import type { ImportedWitnessSpec } from '../src/credential-imported.ts';
@@ -55,7 +55,10 @@ import { mapObject } from '../src//util.ts';
 test('Deserialize Spec', async (t) => {
   await t.test('deserializeProvable', async (t) => {
     await t.test('Field', () => {
-      const deserialized = deserializeProvable({ _type: 'Field', value: '42' });
+      const deserialized = deserializeProvableValue({
+        _type: 'Field',
+        value: '42',
+      });
       assert(deserialized instanceof Field, 'Should be instance of Field');
       assert.strictEqual(
         deserialized.toString(),
@@ -65,14 +68,14 @@ test('Deserialize Spec', async (t) => {
     });
 
     await t.test('Bool', () => {
-      const deserializedTrue = deserializeProvable({
+      const deserializedTrue = deserializeProvableValue({
         _type: 'Bool',
         value: true,
       });
       assert(deserializedTrue instanceof Bool, 'Should be instance of Bool');
       assert.strictEqual(deserializedTrue.toBoolean(), true, 'Should be true');
 
-      const deserializedFalse = deserializeProvable({
+      const deserializedFalse = deserializeProvableValue({
         _type: 'Bool',
         value: false,
       });
@@ -85,7 +88,7 @@ test('Deserialize Spec', async (t) => {
     });
 
     await t.test('UInt8', () => {
-      const deserialized = deserializeProvable({
+      const deserialized = deserializeProvableValue({
         _type: 'UInt8',
         value: '255',
       });
@@ -98,7 +101,7 @@ test('Deserialize Spec', async (t) => {
     });
 
     await t.test('UInt32', () => {
-      const deserialized = deserializeProvable({
+      const deserialized = deserializeProvableValue({
         _type: 'UInt32',
         value: '4294967295',
       });
@@ -111,7 +114,7 @@ test('Deserialize Spec', async (t) => {
     });
 
     await t.test('UInt64', () => {
-      const deserialized = deserializeProvable({
+      const deserialized = deserializeProvableValue({
         _type: 'UInt64',
         value: '18446744073709551615',
       });
@@ -126,7 +129,7 @@ test('Deserialize Spec', async (t) => {
     await t.test('PublicKey', () => {
       const publicKeyBase58 =
         'B62qiy32p8kAKnny8ZFwoMhYpBppM1DWVCqAPBYNcXnsAHhnfAAuXgg';
-      const deserialized = deserializeProvable({
+      const deserialized = deserializeProvableValue({
         _type: 'PublicKey',
         value: publicKeyBase58,
       });
@@ -149,10 +152,10 @@ test('Deserialize Spec', async (t) => {
       const signature = Signature.create(privateKey, message);
 
       // Serialize the signature using serializeProvable
-      const serializedSignature = serializeProvable(signature);
+      const serializedSignature = serializeProvableValue(signature);
 
       // Deserialize the signature
-      const deserialized = deserializeProvable(serializedSignature);
+      const deserialized = deserializeProvableValue(serializedSignature);
 
       assert(
         deserialized instanceof Signature,
@@ -164,7 +167,7 @@ test('Deserialize Spec', async (t) => {
       );
 
       // Additional check to ensure serialized and deserialized signatures match
-      const reserializedSignature = serializeProvable(deserialized);
+      const reserializedSignature = serializeProvableValue(deserialized);
       assert.deepStrictEqual(
         serializedSignature,
         reserializedSignature,
@@ -174,7 +177,11 @@ test('Deserialize Spec', async (t) => {
 
     await t.test('Invalid type', () => {
       assert.throws(
-        () => deserializeProvable({ _type: 'InvalidType' as any, value: '42' }),
+        () =>
+          deserializeProvableValue({
+            _type: 'InvalidType' as any,
+            value: '42',
+          }),
         { message: 'Unsupported provable type: InvalidType' },
         'Should throw for invalid type'
       );

@@ -239,8 +239,8 @@ function formatLogicNode(node: NodeJSON, level = 0): string {
   }
 }
 
-// TODO here we assume that it makes sense to simple converting general serialized provable values to strings
-// but they can be objects etc
+// TODO here we assume that it makes sense to convert general serialized provable values to strings
+// but they can be objects etc. doesn't work for Int64 for example
 
 function formatInputsHumanReadable(inputs: Record<string, InputJSON>): string {
   let sections: string[] = [];

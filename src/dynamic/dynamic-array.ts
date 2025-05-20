@@ -29,9 +29,9 @@ import {
 } from './gadgets.ts';
 import { ProvableFactory } from '../provable-factory.ts';
 import {
-  deserializeProvable,
+  deserializeProvableValue,
   deserializeProvableType,
-  serializeProvable,
+  serializeProvableValue,
   serializeProvableType,
 } from '../serialize-provable.ts';
 import { TypeBuilder, TypeBuilderPure } from '../provable-type-builder.ts';
@@ -925,11 +925,11 @@ ProvableFactory.register('DynamicArray', DynamicArray, {
   },
 
   valueToJSON(_, { array, length }) {
-    return array.slice(0, Number(length)).map((v) => serializeProvable(v));
+    return array.slice(0, Number(length)).map((v) => serializeProvableValue(v));
   },
 
   valueFromJSON(type, value) {
-    let array = value.map((v) => deserializeProvable(v));
+    let array = value.map((v) => deserializeProvableValue(v));
     return type.from(array);
   },
 });

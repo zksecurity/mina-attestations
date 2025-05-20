@@ -30,7 +30,7 @@ import { ProvableFactory } from '../provable-factory.ts';
 import {
   deserializeNestedProvable,
   deserializeNestedProvableValue,
-  serializeNestedProvable,
+  serializeNestedProvableType,
   serializeNestedProvableValue,
 } from '../serialize-provable.ts';
 import { hashString, packToField } from './dynamic-hash.ts';
@@ -265,7 +265,7 @@ ProvableFactory.register('DynamicRecord', DynamicRecord, {
   typeToJSON(constructor) {
     return {
       maxEntries: constructor.prototype.maxEntries,
-      knownShape: serializeNestedProvable(constructor.prototype.knownShape),
+      knownShape: serializeNestedProvableType(constructor.prototype.knownShape),
     };
   },
 
