@@ -13,7 +13,7 @@ Features:
 - "ZkPass Integration" is an example for importing a credential from an external system, [https://zkpass.org/]. If you have the ZkPass extension installed, it lets you walk through their zkTLS flow. This produces a zkTLS proof signed by a zkPass validator, and our web UI lets you import that ECDSA signature into a credential.
 - For easier testing, users can either use their actual wallet or a mock wallet that is created on the fly by the web page.
 
-Note: The only wallet compatible with Mina Attestations is currently [an unreleased version of Pallad](https://github.com/palladians/pallad/pull/231), which is confirmed to work well with this example app, but still in review.
+Note: The demo is expected to work with the latest released version of the [Pallad](https://pallad.co) wallet.
 
 The server is a plain Node.js server located in `/api-server`. The web app is contained in `/src`.
 
