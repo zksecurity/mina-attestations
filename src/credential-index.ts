@@ -31,7 +31,9 @@ import {
 } from './serialize-provable.ts';
 import { Schema } from './dynamic/schema.ts';
 import {
+  credentialSpecWithVk,
   StoredCredentialSchema,
+  type VerificationKeyJSON,
   type CredentialSpecJSON,
 } from './validation.ts';
 
@@ -185,8 +187,6 @@ function specFromJSON(json: CredentialSpecJSON): CredentialSpec<any, any> {
   }
 }
 
-type VerificationKeyJSON = { data: string; hash: string };
-
 function importedToJSON({
   spec,
   verificationKey: vk,
@@ -195,30 +195,29 @@ function importedToJSON({
   verificationKey: VerificationKey | undefined;
 }): {
   spec: CredentialSpecJSON;
-  verificationKey: VerificationKeyJSON | null;
+  verificationKey: VerificationKeyJSON;
 } {
+  assert(vk !== undefined, 'Verification key not found');
   return {
     spec: specToJSON(spec),
-    verificationKey:
-      vk === undefined ? null : { data: vk.data, hash: vk.hash.toString() },
+    verificationKey: { data: vk.data, hash: vk.hash.toString() },
   };
 }
 
-function importedFromJSON({
-  spec,
-  verificationKey,
-}: {
-  spec: CredentialSpecJSON;
-  verificationKey: VerificationKeyJSON | null;
-}): {
-  spec: CredentialSpec;
-  verificationKey: VerificationKey | undefined;
+function importedFromJSON<
+  Spec extends CredentialSpec<any, any> = CredentialSpec
+>(
+  json: unknown
+): {
+  spec: Spec;
+  verificationKey: VerificationKey;
 } {
+  let { spec, verificationKey } = credentialSpecWithVk.parse(json);
   return {
-    spec: specFromJSON(spec),
-    verificationKey:
-      verificationKey === null
-        ? undefined
-        : { data: verificationKey.data, hash: Field(verificationKey.hash) },
+    spec: specFromJSON(spec) as Spec,
+    verificationKey: {
+      data: verificationKey.data,
+      hash: Field(verificationKey.hash),
+    },
   };
 }

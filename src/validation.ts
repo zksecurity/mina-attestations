@@ -13,12 +13,15 @@ export {
   InputSchema,
   ContextSchema,
   PresentationSchema,
+  credentialSpecWithVk,
 };
 export type {
   InputJSON,
   ConstantInputJSON,
   ImportedWitnessSpecJSON,
   CredentialSpecJSON,
+  VerificationKeyJSON,
+  CredentialSpecWithVkJSON,
   NodeJSON,
   SpecJSON,
   PresentationRequestJSON,
@@ -373,6 +376,18 @@ const credentialSpec = z
   })
   .strict();
 type CredentialSpecJSON = z.infer<typeof credentialSpec>;
+
+const verificationKeySimple = z.object({
+  data: z.string(),
+  hash: z.string(),
+});
+type VerificationKeyJSON = z.infer<typeof verificationKeySimple>;
+
+const credentialSpecWithVk = z.object({
+  spec: credentialSpec,
+  verificationKey: verificationKeySimple,
+});
+type CredentialSpecWithVkJSON = z.infer<typeof credentialSpecWithVk>;
 
 const ConstantInputSchema = z
   .object({
