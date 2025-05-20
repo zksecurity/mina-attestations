@@ -1,4 +1,9 @@
-import { Field, initializeBindings, type PublicKey } from 'o1js';
+import {
+  Field,
+  initializeBindings,
+  type VerificationKey,
+  type PublicKey,
+} from 'o1js';
 import {
   createUnsigned,
   type CredentialSpec,
@@ -107,6 +112,9 @@ const Credential = {
   dataToJSON<Data>(credential: Credential<Data>) {
     return JSON.stringify(serializeNestedProvableValue(credential));
   },
+
+  importedToJSON,
+  importedFromJSON,
 };
 
 // validating generic credential
@@ -175,4 +183,42 @@ function specFromJSON(json: CredentialSpecJSON): CredentialSpec<any, any> {
     default:
       throw Error(`Unsupported credential id: ${json.credentialType}`);
   }
+}
+
+type VerificationKeyJSON = { data: string; hash: string };
+
+function importedToJSON({
+  spec,
+  verificationKey: vk,
+}: {
+  spec: CredentialSpec<any, any>;
+  verificationKey: VerificationKey | undefined;
+}): {
+  spec: CredentialSpecJSON;
+  verificationKey: VerificationKeyJSON | null;
+} {
+  return {
+    spec: specToJSON(spec),
+    verificationKey:
+      vk === undefined ? null : { data: vk.data, hash: vk.hash.toString() },
+  };
+}
+
+function importedFromJSON({
+  spec,
+  verificationKey,
+}: {
+  spec: CredentialSpecJSON;
+  verificationKey: VerificationKeyJSON | null;
+}): {
+  spec: CredentialSpec;
+  verificationKey: VerificationKey | undefined;
+} {
+  return {
+    spec: specFromJSON(spec),
+    verificationKey:
+      verificationKey === null
+        ? undefined
+        : { data: verificationKey.data, hash: Field(verificationKey.hash) },
+  };
 }
