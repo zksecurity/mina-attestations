@@ -3,6 +3,7 @@ import type {
   SerializedNestedType,
   SerializedType,
 } from './serialize-provable.ts';
+import type { Json } from './types.ts';
 
 export {
   SerializedTypeSchema,
@@ -30,9 +31,6 @@ export type {
   ZkAppIdentityJSON,
   PresentationJSON,
 };
-
-type Literal = string | number | boolean | null;
-type Json = Literal | { [key: string]: Json } | Json[];
 
 const LiteralSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
@@ -135,6 +133,7 @@ const NestedSerializedTypeSchema: z.ZodType<SerializedNestedType> = z.lazy(() =>
 const SerializedValueSchema = SerializedTypeSchema.and(
   z.object({ value: JsonSchema })
 );
+type SerializedValue = z.infer<typeof SerializedValueSchema>;
 
 const SerializedDataValueSchema = z.union([
   SerializedValueSchema,
@@ -181,7 +180,7 @@ type NodeJSON =
   | { type: 'issuerPublicKey'; credentialKey: string }
   | { type: 'verificationKeyHash'; credentialKey: string }
   | { type: 'publicInput'; credentialKey: string }
-  | { type: 'constant'; data: z.infer<typeof SerializedValueSchema> }
+  | { type: 'constant'; data: SerializedValue }
   | { type: 'root' }
   | { type: 'property'; key: string; inner: NodeJSON }
   | { type: 'record'; data: Record<string, NodeJSON> }

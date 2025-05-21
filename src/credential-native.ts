@@ -16,7 +16,7 @@ import {
 import { prefixes } from './constants.ts';
 import { ProvableType } from './o1js-missing.ts';
 import { deserializeNestedProvableValue } from './serialize-provable.ts';
-import type { JSONValue } from './types.ts';
+import type { Json } from './types.ts';
 
 export { Native, createNative, type NativeWitness };
 
@@ -73,7 +73,7 @@ Native.issuer = function (issuer: PublicKey) {
 function createNative<Data>(
   issuerPrivateKey: PrivateKey,
   credentialInput: Credential<Data> | string,
-  metadata?: JSONValue
+  metadata?: Json
 ): Native<Data> {
   let issuer = issuerPrivateKey.toPublicKey();
   let credential =
