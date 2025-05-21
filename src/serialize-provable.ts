@@ -19,9 +19,15 @@ import {
   type JsonProof,
   Int64,
 } from 'o1js';
-import { assert, assertHasMethod, defined, mapObject } from './util.ts';
+import {
+  assert,
+  assertHasMethod,
+  defined,
+  hasProperty,
+  mapObject,
+} from './util.ts';
 import { ProvableFactory, type SerializedFactory } from './provable-factory.ts';
-import type { JSONValue } from './types.ts';
+import type { Json } from './types.ts';
 
 export {
   type SerializedType,
@@ -66,7 +72,7 @@ type SerializedType =
   | { _type: O1jsTypeName }
   | { _type: 'Struct'; properties: SerializedNestedType }
   | { _type: 'Array'; inner: SerializedType; size: number }
-  | { _type: 'Constant'; value: JSONValue }
+  | { _type: 'Constant'; value: Json }
   | { _type: 'Bytes'; size: number }
   | { _type: 'Proof'; proof: Record<string, any> }
   | { _type: 'String' }
@@ -118,7 +124,7 @@ function serializeProvableType(type: ProvableType<any>): SerializedType {
   return { _type };
 }
 
-type SerializedValue = SerializedType & { value: JSONValue };
+type SerializedValue = SerializedType & { value: Json };
 type SerializedValueAny = SerializedType & { value: any };
 type SerializedNestedValue =
   | SerializedValue
@@ -162,6 +168,8 @@ function serializeProvableValue(value: any): SerializedValue {
       return { ...serializedType, value };
     case 'UInt8':
       return { ...serializedType, value: (value as UInt8).toString() };
+    case 'Int64':
+      return { ...serializedType, value: (value as Int64).toString() };
     case 'VerificationKey':
       let vk: VerificationKey = value;
       return {
@@ -317,7 +325,8 @@ function deserializeProvableValue(json: SerializedValueAny): any {
     case 'UInt64':
       return UInt64.fromJSON(value);
     case 'Int64':
-      return Int64.fromJSON(value);
+      if (hasProperty(value, 'magnitude')) return Int64.fromJSON(value);
+      return Int64.from(value);
     case 'PublicKey':
       return PublicKey.fromJSON(value);
     case 'Signature':
@@ -409,7 +418,7 @@ function deserializeNestedProvableValue(value: SerializedNestedValue) {
   throw Error(`Invalid nested provable value: ${value}`);
 }
 
-function replaceNull<Input extends Record<string, JSONValue>>(
+function replaceNull<Input extends Record<string, Json>>(
   obj: Input
 ): {
   [K in keyof Input]: Input[K] extends infer T | null
@@ -420,7 +429,7 @@ function replaceNull<Input extends Record<string, JSONValue>>(
 }
 
 // `null` is preserved in JSON, but `undefined` is removed
-function replaceUndefined<Input extends Record<string, JSONValue | undefined>>(
+function replaceUndefined<Input extends Record<string, Json | undefined>>(
   obj: Input
 ): {
   [K in keyof Input]: Input[K] extends infer T | undefined
