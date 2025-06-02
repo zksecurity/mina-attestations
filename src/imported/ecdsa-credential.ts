@@ -22,6 +22,7 @@ import { unpackBytes } from '../dynamic/gadgets.ts';
 export {
   EcdsaEthereum,
   parseSignature,
+  parseAddress,
   recoverPublicKey,
   publicKeyToAddress,
   verifyEthereumSignature,
@@ -41,8 +42,10 @@ const Address = Bytes(20);
 const EcdsaEthereum = {
   Signature,
   PublicKey,
-  MessageHash,
-  Address,
+  MessageHash: MessageHash as typeof Bytes.Base,
+  Address: Address as typeof Bytes.Base,
+  parseSignature,
+  parseAddress,
 
   /**
    * Credential that wraps an Ethereum-style ECDSA signature.
@@ -263,6 +266,13 @@ function parseSignature(signature: string | Uint8Array) {
   // Convert v to parity of R_y (27/28 -> 0/1 -> boolean)
   let parityBit = !!(v - 27);
   return { signature: { r, s }, parityBit };
+}
+
+/**
+ * Helper function to convert a hex address to the Bytes expected by the ECDSA credential.
+ */
+function parseAddress(address: string): Bytes {
+  return Address.from(ByteUtils.fromHex(address));
 }
 
 /*
