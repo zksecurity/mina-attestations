@@ -48,8 +48,8 @@ import { NestedProvable } from './nested.ts';
 import { serializeSpec, deserializeSpec } from './serialize-spec.ts';
 import {
   deserializeNestedProvableValue,
-  deserializeProvable,
-  serializeProvable,
+  deserializeProvableValue,
+  serializeProvableValue,
   serializeProvableField,
   serializeSimplyNestedProvableValue,
 } from './serialize-provable.ts';
@@ -542,7 +542,7 @@ function toJSON<Output, Inputs extends Record<string, Input>>(
   let json: PresentationJSON = {
     version: presentation.version,
     claims: serializeSimplyNestedProvableValue(presentation.claims),
-    outputClaim: serializeProvable(presentation.outputClaim),
+    outputClaim: serializeProvableValue(presentation.outputClaim),
     serverNonce: serializeProvableField(presentation.serverNonce),
     clientNonce: serializeProvableField(presentation.clientNonce),
     proof: presentation.proof,
@@ -560,9 +560,9 @@ function fromJSON(presentationJson: string): Presentation {
   return {
     version: presentation.version,
     claims: deserializeNestedProvableValue(presentation.claims),
-    outputClaim: deserializeProvable(presentation.outputClaim),
-    serverNonce: deserializeProvable(presentation.serverNonce),
-    clientNonce: deserializeProvable(presentation.clientNonce),
+    outputClaim: deserializeProvableValue(presentation.outputClaim),
+    serverNonce: deserializeProvableValue(presentation.serverNonce),
+    clientNonce: deserializeProvableValue(presentation.clientNonce),
     proof: presentation.proof,
   };
 }

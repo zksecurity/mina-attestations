@@ -2,7 +2,7 @@ import { Field, PublicKey, Poseidon } from 'o1js';
 import { prefixes } from './constants.ts';
 import { hashString } from './dynamic/dynamic-hash.ts';
 import {
-  deserializeProvable,
+  deserializeProvableValue,
   serializeProvableField,
   serializeProvablePublicKey,
 } from './serialize-provable.ts';
@@ -170,7 +170,7 @@ function deserializeHttpsContext(context: ContextJSON): HttpsInputContext {
   return {
     type: context.type,
     action: context.action,
-    serverNonce: deserializeProvable(context.serverNonce),
+    serverNonce: deserializeProvableValue(context.serverNonce),
   };
 }
 
@@ -179,10 +179,10 @@ function deserializeZkAppContext(context: ContextJSON): ZkAppInputContext {
   return {
     type: context.type,
     action: context.action,
-    serverNonce: deserializeProvable(context.serverNonce),
+    serverNonce: deserializeProvableValue(context.serverNonce),
     verifierIdentity: {
-      publicKey: deserializeProvable(context.verifierIdentity.publicKey),
-      tokenId: deserializeProvable(context.verifierIdentity.tokenId),
+      publicKey: deserializeProvableValue(context.verifierIdentity.publicKey),
+      tokenId: deserializeProvableValue(context.verifierIdentity.tokenId),
       network: context.verifierIdentity.network,
     },
   };

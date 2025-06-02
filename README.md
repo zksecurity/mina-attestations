@@ -399,7 +399,7 @@ A `StoredCredential` represents a credential in its stored form, containing all 
 type StoredCredential<Data = unknown, Witness = unknown> = {
   version: 'v0';
   witness: Witness;
-  metadata: JSONValue | undefined;
+  metadata: Json | undefined;
   credential: Credential<Data>;
 };
 ```
@@ -460,7 +460,7 @@ The `Credential` namespace provides the main interface for working with credenti
 
 It also specifies the following methods:
 
-- `sign<Data>(issuerPrivateKey: PrivateKey, credentialInput: Credential<Data> | string, metadata?: JSONValue): Native<Data>`
+- `sign<Data>(issuerPrivateKey: PrivateKey, credentialInput: Credential<Data> | string, metadata?: Json): Native<Data>`
 
   - Creates a new native credential signed by the issuer
   - Parameters:
@@ -470,7 +470,7 @@ It also specifies the following methods:
   - Returns:
     - A new native credential
 
-- `unsigned<Data>(data: Data, metadata?: JSONValue): Unsigned<Data>`
+- `unsigned<Data>(data: Data, metadata?: Json): Unsigned<Data>`
   - Creates a new unsigned, dummy credential with no owner and no signature
   - Parameters:
     - `data`: The credential data
@@ -557,7 +557,7 @@ The `Credential` namespace provides several methods to help create different typ
 
 #### Native Credential
 
-`Credential.sign<Data>(issuerPrivateKey: PrivateKey, credentialInput: Credential<Data> | string, metadata?: JSONValue): Native<Data>`
+`Credential.sign<Data>(issuerPrivateKey: PrivateKey, credentialInput: Credential<Data> | string, metadata?: Json): Native<Data>`
 
 - Creates a new native credential signed by the issuer
 - Parameters:
@@ -576,7 +576,7 @@ let signedData = Credential.sign(issuerKey, { owner, data });
 
 #### Unsigned Credential
 
-`Credential.unsigned<Data>(data: Data, metadata?: JSONValue): Unsigned<Data>`
+`Credential.unsigned<Data>(data: Data, metadata?: Json): Unsigned<Data>`
 
 - Creates a new unsigned, dummy credential with no owner and no signature
 - Parameters:

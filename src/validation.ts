@@ -3,6 +3,7 @@ import type {
   SerializedNestedType,
   SerializedType,
 } from './serialize-provable.ts';
+import type { Json } from './types.ts';
 
 export {
   SerializedTypeSchema,
@@ -13,12 +14,15 @@ export {
   InputSchema,
   ContextSchema,
   PresentationSchema,
+  credentialSpecWithVk,
 };
 export type {
   InputJSON,
   ConstantInputJSON,
   ImportedWitnessSpecJSON,
   CredentialSpecJSON,
+  VerificationKeyJSON,
+  CredentialSpecWithVkJSON,
   NodeJSON,
   SpecJSON,
   PresentationRequestJSON,
@@ -27,9 +31,6 @@ export type {
   ZkAppIdentityJSON,
   PresentationJSON,
 };
-
-type Literal = string | number | boolean | null;
-type Json = Literal | { [key: string]: Json } | Json[];
 
 const LiteralSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
@@ -132,6 +133,7 @@ const NestedSerializedTypeSchema: z.ZodType<SerializedNestedType> = z.lazy(() =>
 const SerializedValueSchema = SerializedTypeSchema.and(
   z.object({ value: JsonSchema })
 );
+type SerializedValue = z.infer<typeof SerializedValueSchema>;
 
 const SerializedDataValueSchema = z.union([
   SerializedValueSchema,
@@ -178,7 +180,7 @@ type NodeJSON =
   | { type: 'issuerPublicKey'; credentialKey: string }
   | { type: 'verificationKeyHash'; credentialKey: string }
   | { type: 'publicInput'; credentialKey: string }
-  | { type: 'constant'; data: z.infer<typeof SerializedValueSchema> }
+  | { type: 'constant'; data: SerializedValue }
   | { type: 'root' }
   | { type: 'property'; key: string; inner: NodeJSON }
   | { type: 'record'; data: Record<string, NodeJSON> }
@@ -373,6 +375,18 @@ const credentialSpec = z
   })
   .strict();
 type CredentialSpecJSON = z.infer<typeof credentialSpec>;
+
+const verificationKeySimple = z.object({
+  data: z.string(),
+  hash: z.string(),
+});
+type VerificationKeyJSON = z.infer<typeof verificationKeySimple>;
+
+const credentialSpecWithVk = z.object({
+  spec: credentialSpec,
+  verificationKey: verificationKeySimple,
+});
+type CredentialSpecWithVkJSON = z.infer<typeof credentialSpecWithVk>;
 
 const ConstantInputSchema = z
   .object({

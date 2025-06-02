@@ -15,7 +15,7 @@ import {
 } from './nested.ts';
 import { zip } from './util.ts';
 import { hashDynamic, provableTypeMatches } from './dynamic/dynamic-hash.ts';
-import type { JSONValue } from './types.ts';
+import type { Json } from './types.ts';
 import type { ImportedWitnessSpec } from './credential-imported.ts';
 
 export {
@@ -78,7 +78,7 @@ type WitnessSpec = ImportedWitnessSpec | undefined;
 type StoredCredential<Data = unknown, Witness = unknown> = {
   version: 'v0';
   witness: Witness;
-  metadata: JSONValue | undefined;
+  metadata: Json | undefined;
   credential: Credential<Data>;
 };
 
@@ -233,10 +233,7 @@ function unsafeMissingOwner(): PublicKey {
   return PublicKey.fromGroup(Group.generator);
 }
 
-function createUnsigned<Data>(
-  data: Data,
-  metadata?: JSONValue
-): Unsigned<Data> {
+function createUnsigned<Data>(data: Data, metadata?: Json): Unsigned<Data> {
   return {
     version: 'v0',
     metadata,

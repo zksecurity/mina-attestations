@@ -1,4 +1,4 @@
-export type { Tuple, ExcludeFromRecord, Constructor, JSONValue };
+export type { Tuple, ExcludeFromRecord, Constructor, Json };
 
 type Tuple<T = any> = [T, ...T[]] | [];
 
@@ -8,10 +8,5 @@ type ExcludeFromRecord<T, E> = {
 
 type Constructor<T = any> = new (...args: any) => T;
 
-type JSONValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JSONValue[]
-  | { [key: string]: JSONValue };
+type Literal = string | number | boolean | null;
+type Json = Literal | { [key: string]: Json } | Json[];

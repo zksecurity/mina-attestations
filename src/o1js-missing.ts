@@ -15,7 +15,7 @@ import {
 } from 'o1js';
 import { assert, assertHasProperty, hasProperty } from './util.ts';
 import type { NestedProvable } from './nested.ts';
-import type { JSONValue } from './types.ts';
+import type { Json } from './types.ts';
 
 export {
   ProvableType,
@@ -77,7 +77,7 @@ const ProvableType = {
     );
   },
 
-  constant<const T extends JSONValue>(
+  constant<const T extends Json>(
     value: T
   ): ProvablePure<T, T> & { serialize(): any } {
     return {

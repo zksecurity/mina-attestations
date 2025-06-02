@@ -1,4 +1,9 @@
-import { Field, initializeBindings, type PublicKey } from 'o1js';
+import {
+  Field,
+  initializeBindings,
+  type VerificationKey,
+  type PublicKey,
+} from 'o1js';
 import {
   createUnsigned,
   type CredentialSpec,
@@ -21,12 +26,14 @@ import { type InferNestedProvable, NestedProvable } from './nested.ts';
 import {
   deserializeNestedProvable,
   deserializeNestedProvableValue,
-  serializeNestedProvable,
+  serializeNestedProvableType,
   serializeNestedProvableValue,
 } from './serialize-provable.ts';
 import { Schema } from './dynamic/schema.ts';
 import {
+  credentialSpecWithVk,
   StoredCredentialSchema,
+  type VerificationKeyJSON,
   type CredentialSpecJSON,
 } from './validation.ts';
 
@@ -107,6 +114,9 @@ const Credential = {
   dataToJSON<Data>(credential: Credential<Data>) {
     return JSON.stringify(serializeNestedProvableValue(credential));
   },
+
+  importedToJSON,
+  importedFromJSON,
 };
 
 // validating generic credential
@@ -154,7 +164,7 @@ function specToJSON(spec: CredentialSpec): CredentialSpecJSON {
       spec.witness === undefined
         ? null
         : ImportedWitnessSpec.toJSON(spec.witness),
-    data: serializeNestedProvable(spec.data),
+    data: serializeNestedProvableType(spec.data),
   };
 }
 
@@ -175,4 +185,39 @@ function specFromJSON(json: CredentialSpecJSON): CredentialSpec<any, any> {
     default:
       throw Error(`Unsupported credential id: ${json.credentialType}`);
   }
+}
+
+function importedToJSON({
+  spec,
+  verificationKey: vk,
+}: {
+  spec: CredentialSpec<any, any>;
+  verificationKey: VerificationKey | undefined;
+}): {
+  spec: CredentialSpecJSON;
+  verificationKey: VerificationKeyJSON;
+} {
+  assert(vk !== undefined, 'Verification key not found');
+  return {
+    spec: specToJSON(spec),
+    verificationKey: { data: vk.data, hash: vk.hash.toString() },
+  };
+}
+
+function importedFromJSON<
+  Spec extends CredentialSpec<any, any> = CredentialSpec
+>(
+  json: unknown
+): {
+  spec: Spec;
+  verificationKey: VerificationKey;
+} {
+  let { spec, verificationKey } = credentialSpecWithVk.parse(json);
+  return {
+    spec: specFromJSON(spec) as Spec,
+    verificationKey: {
+      data: verificationKey.data,
+      hash: Field(verificationKey.hash),
+    },
+  };
 }

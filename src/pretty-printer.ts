@@ -1,5 +1,5 @@
 import type { SerializedType, SerializedValue } from './serialize-provable.ts';
-import type { JSONValue } from './types.ts';
+import type { Json } from './types.ts';
 import type {
   ConstantInputJSON,
   CredentialSpecJSON,
@@ -63,20 +63,16 @@ function printVerifierIdentity(
 See verifying zkApp on Minascan: https://${verifierUrl}\n`;
 }
 
-function simplifyCredentialData(storedCredential: StoredCredentialJSON) {
-  const data = getCredentialData(storedCredential.credential);
-  let simplified: Record<string, JSONValue> = {};
-  for (let [key, value] of Object.entries(data)) {
-    if (typeof value === 'object' && value !== null) {
-      if ('bytes' in value) {
-        simplified[key] = value.bytes
-          .map((b: { value: string }) => b.value)
-          .join('');
-      } else if ('value' in value) {
-        simplified[key] = value.value;
-      } else {
-        simplified[key] = value;
-      }
+function simplifyCredentialData(storedCredential: StoredCredentialJSON): Json {
+  let data = getCredentialData(storedCredential.credential);
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return data;
+  }
+  let dataObject: Record<string, Json | SerializedValue> = data;
+  let simplified: Record<string, Json> = {};
+  for (let [key, value] of Object.entries(dataObject)) {
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      simplified[key] = value.value;
     } else {
       simplified[key] = value;
     }
@@ -86,10 +82,12 @@ function simplifyCredentialData(storedCredential: StoredCredentialJSON) {
 
 function getCredentialData(
   credential: StoredCredentialJSON['credential']
-): Record<
-  string,
-  string | number | boolean | (SerializedType & { value: JSONValue })
-> {
+):
+  | Json
+  | Record<
+      string,
+      string | number | boolean | (SerializedType & { value: Json })
+    > {
   if ('value' in credential) {
     // TODO get rid of type coercions
     return credential.value.data as any;
@@ -203,10 +201,8 @@ function formatLogicNode(node: NodeJSON, level = 0): string {
         .join(`\n${indent}`);
     }
     case 'constant': {
-      if (node.data._type === 'Undefined') {
-        return 'undefined';
-      }
-      return node.data.value?.toString() ?? 'null';
+      if (node.data._type === 'Undefined') return 'undefined';
+      return formatJson(node.data.value);
     }
     case 'ifThenElse':
       return `${indent}If this condition is true:\n${indent}- ${formatLogicNode(
@@ -235,12 +231,12 @@ function formatLogicNode(node: NodeJSON, level = 0): string {
       return `verificationKeyHash(${node.credentialKey})`;
     }
     default:
-      throw Error(`Unknown node type: ${(node satisfies never as any).type}`);
+      return `<UNKNOWN OPERATION '${(node satisfies never as any).type}'>`;
   }
 }
 
-// TODO here we assume that it makes sense to simple converting general serialized provable values to strings
-// but they can be objects etc
+// TODO here we assume that it makes sense to convert general serialized provable values to strings
+// but they can be objects etc. doesn't work for Int64 for example
 
 function formatInputsHumanReadable(inputs: Record<string, InputJSON>): string {
   let sections: string[] = [];
@@ -283,7 +279,9 @@ function formatInputsHumanReadable(inputs: Record<string, InputJSON>): string {
   if (constants.length > 0) {
     sections.push('\nConstants:');
     for (let [key, input] of constants) {
-      sections.push(`- ${key}: ${input.data._type} = ${input.value}`);
+      sections.push(
+        `- ${key}: ${input.data._type} = ${formatJson(input.value)}`
+      );
     }
   }
 
@@ -296,13 +294,12 @@ function formatClaimsHumanReadable(
   let sections = ['\nClaimed values:'];
 
   for (let [key, claim] of Object.entries(claims)) {
-    if (claim._type === 'DynamicArray' && claim.value) {
-      let values = (claim.value as any[]).map((v) => v.value).join(', ');
-      sections.push(`- ${key}:\n  ${values}`);
-    } else {
-      sections.push(`- ${key}: ${claim.value}`);
-    }
+    sections.push(`- ${key}: ${formatJson(claim.value)}`);
   }
-
   return sections.join('\n');
+}
+
+function formatJson(value: Json) {
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
 }

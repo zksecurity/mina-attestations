@@ -220,9 +220,6 @@ async function importedFromProgram<
   let data = ProvableType.synthesize(program.publicOutputType).data;
   let dataType = NestedProvable.get(NestedProvable.fromValue(data));
 
-  let isCompiled = false;
-  let vk: VerificationKey | undefined;
-
   let self = {
     spec: createImported<Provable<Data>, InputType, Data, Input>({
       data: dataType,
@@ -236,6 +233,8 @@ async function importedFromProgram<
     }),
 
     program,
+    isCompiled: false,
+    verificationKey: undefined as VerificationKey | undefined,
 
     async create(...inputs: AllInputs) {
       let vk = await self.compile();
@@ -261,11 +260,11 @@ async function importedFromProgram<
       forceRecompile?: boolean;
       proofsEnabled?: boolean;
     }) {
-      if (isCompiled) return vk!;
+      if (self.isCompiled) return self.verificationKey!;
       let result = await program.compile(options);
-      vk = result.verificationKey;
-      isCompiled = true;
-      return vk;
+      self.isCompiled = true;
+      self.verificationKey = result.verificationKey;
+      return self.verificationKey;
     },
 
     async dummy({
@@ -366,31 +365,32 @@ async function importedFromMethod<
     PublicInput,
     any
   >(program as any);
-  return {
-    ...(credentialSpec as Omit<typeof credentialSpec, 'create'>),
-
-    async create(inputs: {
-      publicInput: From<PublicInputType>;
-      privateInput: From<PrivateInputType>;
-      owner: PublicKey;
-    }) {
-      let vk = await this.compile();
-      let proof: Proof<PublicInput, Credential<Data>>;
-      if (publicInput === undefined) {
-        ({ proof } = await (program.run as any)(
-          privateInput.fromValue(inputs.privateInput),
-          inputs.owner
-        ));
-      } else {
-        ({ proof } = await (program.run as any)(
-          publicInput.fromValue(inputs.publicInput),
-          privateInput.fromValue(inputs.privateInput),
-          inputs.owner
-        ));
-      }
-      return credentialSpec.fromProof(proof, vk);
-    },
-  };
+  return Object.assign(
+    credentialSpec as Omit<typeof credentialSpec, 'create'>,
+    {
+      async create(inputs: {
+        publicInput: From<PublicInputType>;
+        privateInput: From<PrivateInputType>;
+        owner: PublicKey;
+      }) {
+        let vk = await credentialSpec.compile();
+        let proof: Proof<PublicInput, Credential<Data>>;
+        if (publicInput === undefined) {
+          ({ proof } = await (program.run as any)(
+            privateInput.fromValue(inputs.privateInput),
+            inputs.owner
+          ));
+        } else {
+          ({ proof } = await (program.run as any)(
+            publicInput.fromValue(inputs.publicInput),
+            privateInput.fromValue(inputs.privateInput),
+            inputs.owner
+          ));
+        }
+        return credentialSpec.fromProof(proof, vk);
+      },
+    }
+  );
 }
 
 type Get<T, Key extends string> = T extends {

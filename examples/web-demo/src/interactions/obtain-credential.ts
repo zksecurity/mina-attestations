@@ -10,6 +10,7 @@ let provider: Provider | undefined;
 
 let providers: any[] = [];
 window.addEventListener('mina:announceProvider', (event: any) => {
+  console.log('Provider announced', event.detail.info);
   providers.push(event.detail);
 });
 window.dispatchEvent(new Event('mina:requestProvider'));
@@ -20,7 +21,6 @@ function getProvider(): Provider {
   // find pallad provider
   // TODO: use mina-js for this once it's compatible
   provider = providers.find((provider) => {
-    console.log(provider.info);
     return provider.info.slug === 'pallad';
   })?.provider;
   if (provider === undefined) throw Error('Provider not found');

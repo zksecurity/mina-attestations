@@ -6,12 +6,14 @@ import {
   Spec,
   Claim,
   hashDynamic,
+  Credential,
 } from '../../../src/index.ts';
 import { ORIGIN, SERVER_ID } from './config.ts';
 import { queuePromise } from './async-queue.ts';
 import { ZkPass } from '../../../src/imported.ts';
 import { Field } from 'o1js';
 import { Nullifier } from './nullifier-store.ts';
+import specJSON from '../../../scripts/gen/zkpass-credential.json' with { type: 'json' };
 
 export { requestZkPassVerification, verifyZkPass };
 
@@ -28,10 +30,13 @@ const SCHEMA_ID = schemaIdDev; // TODO: currently always assume dev schema becau
 // expected to be stable, did not rotate so far
 const ALLOCATOR_ADDRESS = '19a567b3b212a5b35ba0e3b600fbed5c2ee9083d';
 
-await queuePromise(() => ZkPass.compileDependenciesPartial());
-const zkPassCredential = await queuePromise(() => ZkPass.CredentialPartial());
+// await queuePromise(() => ZkPass.compileDependenciesPartial());
+// const zkPassCredential = await queuePromise(() => ZkPass.CredentialPartial());
+// const vk = await queuePromise(() => zkPassCredential.compile());
 
-const vk = await queuePromise(() => zkPassCredential.compile());
+type ZkPassSpec = Awaited<ReturnType<typeof ZkPass.CredentialPartial>>['spec'];
+const zkPassCredential = Credential.importedFromJSON<ZkPassSpec>(specJSON);
+const vk = zkPassCredential.verificationKey;
 
 console.log('vk.hash:', vk.hash.toJSON());
 

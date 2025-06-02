@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ES2022",
-    "moduleResolution": "Node10",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": ["server.ts"]
 }
