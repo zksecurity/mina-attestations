@@ -1888,7 +1888,7 @@ const String = DynamicString({ maxLength: 100 });
 
 let sha512Program = ZkProgram({
   name: 'sha512',
-  publicOutput: Bytes(64); // 64 bytes == 512 bits
+  publicOutput: Bytes(64) // 64 bytes == 512 bits
 
   methods: {
     run: {
@@ -1903,7 +1903,7 @@ let sha512Program = ZkProgram({
 
 await sha512Program.compile();
 
-let result = await sha512Program.run(String.from('Hello, world!'));
+let result = await sha512Program.run('Hello, world!');
 let provenHash: Bytes = result.proof.publicOutput;
 
 console.log(provenHash.toHex());
