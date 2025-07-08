@@ -9,7 +9,7 @@ import { id } from 'ethers/hash';
 
 // consts
 const maxMessageLength = 32;
-const proofsEnabled = false;
+const proofsEnabled = true;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
 
 // prepare ecdsa credential
@@ -39,3 +39,5 @@ console.log(
   '✅ created credential',
   Credential.toJSON(credential).slice(0, 1000) + '...'
 );
+
+if (proofsEnabled) await Credential.validate(credential);
