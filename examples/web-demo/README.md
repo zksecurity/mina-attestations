@@ -2,7 +2,7 @@
 
 This folder contains a simple demo website and server which are designed to demonstrate how to use our credentials library in a concrete setting.
 
-**You can try it out at https://mina-attestations-demo.zksecurity.xyz**
+The demo used to be live at https://mina-attestations-demo.zksecurity.xyz but **is not currently operational** (to save server resources).
 
 Features:
 
