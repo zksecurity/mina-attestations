@@ -2,8 +2,6 @@
 
 This is a TypeScript library that implements _private attestations_: A cryptographic protocol that allows you to selectively disclose facts about yourself, using zero-knowledge proofs.
 
-**🎮 Try our demo: [mina-attestations-demo.zksecurity.xyz](https://mina-attestations-demo.zksecurity.xyz)**
-
 The library is available on npm and designed for all modern JS runtimes.
 
 ```
