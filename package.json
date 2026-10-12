@@ -64,9 +64,9 @@
     "typescript": "^5.7.3"
   },
   "peerDependencies": {
-    "o1js": "^2.3.0"
+    "o1js": "^3.1.0"
   },
   "engines": {
-    "node": ">=22.0"
+    "node": ">=22.19.5"
   }
 }
