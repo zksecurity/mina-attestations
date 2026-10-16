@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        node: [22]
+        node: [24]
         os: [ubuntu-latest]
     steps:
       - name: Set up NodeJS
