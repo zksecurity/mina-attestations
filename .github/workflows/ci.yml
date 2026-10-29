@@ -8,17 +8,12 @@ on:
 jobs:
   test:
     timeout-minutes: 30
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        node: [22]
-        os: [ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Set up NodeJS
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
       - name: Git checkout
         uses: actions/checkout@v4
       - name: NPM ci, build, & test
